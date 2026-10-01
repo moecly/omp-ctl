@@ -64,9 +64,8 @@ just web-build  # 构建前端到 dist/
 just serve      # 单独在 1420 端口跑 Vite（仅调试前端时用）
 just dev        # 启动 Tauri 窗口（beforeDevCommand 自动拉起 Vite）
 just check-rust # cargo check
-just test       # cargo test
+just build      # cargo tauri build（全默认包）；Release CI 按平台传 --bundles（linux deb,rpm / win nsis,msi / mac app,dmg）
 just fmt-rust   # cargo fmt
-just build      # cargo tauri build（deb + rpm）
 ```
 
 `just dev` 已由 `beforeDevCommand` 自动启动 Vite，无需另开 `just serve`。

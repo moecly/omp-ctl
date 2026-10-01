@@ -15,11 +15,11 @@ jobs:
       matrix:
         include:
           - platform: ubuntu-latest
-            args: ""
+            args: "--bundles deb,rpm"
           - platform: windows-latest
-            args: ""
+            args: "--bundles nsis,msi"
           - platform: macos-latest
-            args: ""
+            args: "--bundles app,dmg"
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
