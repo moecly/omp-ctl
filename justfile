@@ -39,20 +39,20 @@ web-install:
 
 # Type-check the frontend.
 web-check:
-    bun --cwd web run check
+    cd web && bun run check
 
 # Build the frontend into dist/.
 web-build:
-    bun --cwd web run build
+    cd web && bun run build
 
 # Serve the frontend on the port Tauri expects.
 serve:
-    bun --cwd web run dev
+    cd web && bun run dev
 
 # Wayland 下 WebKit 渲染错乱，需禁用 DMABUF renderer 并走 X11。
 dev:
     WEBKIT_DISABLE_DMABUF_RENDERER=1 GDK_BACKEND=x11 cargo tauri dev
 
-  # Build a release bundle.
+# Build a release bundle.
 build: web-build
     cargo tauri build

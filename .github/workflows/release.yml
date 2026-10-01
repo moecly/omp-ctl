@@ -41,10 +41,10 @@ jobs:
           workspaces: src-tauri -> target
 
       - name: Install frontend dependencies
-        run: bun install --cwd web
+        run: cd web && bun install
 
       - name: Build frontend
-        run: bun --cwd web run build
+        run: cd web && bun run build
 
       - uses: tauri-apps/tauri-action@v1
         env:
