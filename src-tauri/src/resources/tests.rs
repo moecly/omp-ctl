@@ -141,3 +141,53 @@ fn remove_archives_instead_of_hard_deleting() {
     assert_eq!(entries.len(), 1);
     assert_eq!(fs::read_to_string(&entries[0]).unwrap(), "BODY");
 }
+
+#[test]
+fn agent_model_and_disabled_round_trip() {
+    let sb = Sandbox::new("agent-task");
+    fs::write(
+        sb.store().join("config.yml"),
+        "task:\n  disabledAgents: []\n  agentModelOverrides: {}\n",
+    )
+    .unwrap();
+    fs::create_dir_all(sb.agent().join("agents")).unwrap();
+    fs::write(sb.agent().join("agents/reviewer.md"), "BODY").unwrap();
+
+    let entry = set_agent_disabled(&sb.agent(), "reviewer.md", true).unwrap();
+    assert!(entry.agent_disabled);
+    let entry = set_agent_model(&sb.agent(), "reviewer.md", "axon/x").unwrap();
+    assert_eq!(entry.agent_model.as_deref(), Some("axon/x"));
+    assert!(entry.agent_disabled);
+
+    let listed = list(&sb.agent(), "agents").unwrap();
+    let found = listed.iter().find(|e| e.name == "reviewer.md").unwrap();
+    assert!(found.agent_disabled);
+    assert_eq!(found.agent_model.as_deref(), Some("axon/x"));
+    let text = fs::read_to_string(sb.store().join("config.yml")).unwrap();
+    assert!(text.contains("disabledAgents"));
+    assert!(text.contains("agentModelOverrides"));
+
+    let entry = set_agent_model(&sb.agent(), "reviewer.md", "").unwrap();
+    assert!(entry.agent_model.is_none());
+    let entry = set_agent_disabled(&sb.agent(), "reviewer.md", false).unwrap();
+    assert!(!entry.agent_disabled);
+}
+
+#[test]
+fn restore_agent_default_writes_bundled_content() {
+    let sb = Sandbox::new("agent-restore");
+    let name = bundled_agent_names().unwrap().into_iter().next().unwrap();
+    fs::create_dir_all(sb.agent().join("agents")).unwrap();
+    let entry = restore_agent_default(&sb.agent(), &name).unwrap();
+    assert!(entry.bundled);
+    assert!(entry.store_exists);
+    assert_eq!(
+        fs::read(sb.store().join("agents").join(&name)).unwrap(),
+        fs::read(&entry.agent_path).unwrap()
+    );
+    write(&sb.agent(), "agents", &name, "MINE").unwrap();
+    assert_eq!(fs::read_to_string(&entry.agent_path).unwrap(), "MINE");
+    let entry = restore_agent_default(&sb.agent(), &name).unwrap();
+    assert!(entry.bundled);
+    assert_ne!(fs::read_to_string(entry.agent_path).unwrap(), "MINE");
+}

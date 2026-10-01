@@ -160,6 +160,7 @@ export interface Strings {
     deleteConfirm: string;
     selectorHint: string;
     quickAdd: string;
+    thinkingLevel: string;
   };
   prompts: {
     title: string;
@@ -180,6 +181,11 @@ export interface Strings {
     managedHint: string;
     createPrompt: string;
     editorHint: string;
+    unpack: string;
+    agentModel: string;
+    restoreDefault: string;
+    restoreDefaultConfirm: string;
+    reimportMissing: string;
   };
   mcp: {
     title: string;
@@ -392,6 +398,7 @@ const zh: Strings = {
     deleteConfirm: "确定删除角色 {role}？",
     selectorHint: "形如 provider/model，可带 :off 等后缀",
     quickAdd: "常用角色快捷添加",
+    thinkingLevel: "思考强度",
   },
   prompts: {
     title: "系统提示词",
@@ -408,10 +415,15 @@ const zh: Strings = {
     attachConfirm: "确定接管 {name} 到存储目录？",
     deleteConfirm: "确定删除 {name}？会先归档到备份。",
     restoreConfirm: "确定用备份还原 {name}？",
-    foreignHint: "该条目由外部（如 nix）管理，只读；先“接管”才能修改。",
+    foreignHint: "该条目由外部管理，只读；先“接管”才能修改。",
     managedHint: "该条目由 omp-ctl 接管，修改会同步到存储目录。",
     createPrompt: "新建条目",
     editorHint: "编辑内容后保存；保存前会生成 .bak 备份。",
+    unpack: "导入内置 Agents",
+    agentModel: "使用模型（留空则跟随默认）",
+    restoreDefault: "恢复内置默认",
+    restoreDefaultConfirm: "确定用内置默认覆盖 {name}？当前内容会先备份。",
+    reimportMissing: "补回缺失的内置 Agents",
   },
   mcp: {
     title: "MCP 服务",
@@ -624,6 +636,7 @@ const en: Strings = {
     deleteConfirm: "Delete role {role}?",
     selectorHint: "provider/model, optional :suffix",
     quickAdd: "Quick-add common roles",
+    thinkingLevel: "Thinking level",
   },
   prompts: {
     title: "System Prompts",
@@ -640,10 +653,15 @@ const en: Strings = {
     attachConfirm: "Adopt {name} into the store?",
     deleteConfirm: "Delete {name}? It is archived first.",
     restoreConfirm: "Restore {name} from backup?",
-    foreignHint: "Externally managed (e.g. nix) and read-only; adopt it first to edit.",
+    foreignHint: "Externally managed and read-only; adopt it first to edit.",
     managedHint: "Managed by omp-ctl; edits sync to the store.",
     createPrompt: "New entry",
     editorHint: "Edit then save; a .bak backup is written before saving.",
+    unpack: "Import bundled agents",
+    agentModel: "Model override (empty follows default)",
+    restoreDefault: "Restore bundled default",
+    restoreDefaultConfirm: "Overwrite {name} with the bundled default? Current content is backed up first.",
+    reimportMissing: "Reimport missing bundled agents",
   },
   mcp: {
     title: "MCP Servers",

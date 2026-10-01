@@ -177,6 +177,21 @@ export const ipc = {
     invalidate("resource");
     return r;
   },
+  unpackBundledAgents: async () => {
+    const r = await invoke<ResourceEntry[]>("unpack_bundled_agents");
+    invalidate("resource");
+    return r;
+  },
+  setAgentModel: async (name: string, selector: string) => {
+    const r = await invoke<ResourceEntry>("set_agent_model", { name, selector });
+    invalidate("resource");
+    return r;
+  },
+  restoreAgentDefault: async (name: string) => {
+    const r = await invoke<ResourceEntry>("restore_agent_default", { name });
+    invalidate("resource");
+    return r;
+  },
 
   listBuiltinTools: () =>
     get("builtin-tools", () => invoke<BuiltinTool[]>("list_builtin_tools")),

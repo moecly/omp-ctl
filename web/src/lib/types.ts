@@ -76,6 +76,7 @@ export interface ProviderSummary {
 export interface ModelRef {
   id: string;
   name?: string;
+  thinking?: string[];
 }
 
 export interface SaveResult {
@@ -127,6 +128,9 @@ export interface ResourceEntry {
   size: number | null;
   modified: number | null;
   summary: string | null;
+  agentModel?: string | null;
+  agentDisabled?: boolean;
+  bundled?: boolean;
 }
 
 export interface BuiltinTool {

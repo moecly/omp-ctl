@@ -20,6 +20,7 @@ import {
   IconButton,
   Input,
   SearchInput,
+  Select,
   Switch,
 } from "../components/ui";
 import { PageError, PageSkeleton } from "../components/ui/PageState";
@@ -36,7 +37,7 @@ export function Resources({ resource }: { resource: ResourceId }) {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
-  const [confirm, setConfirm] = useState<{ kind: "delete" | "restore" | "adopt"; entry: ResourceEntry } | null>(null);
+  const [confirm, setConfirm] = useState<{ kind: "delete" | "restore" | "adopt" | "default"; entry: ResourceEntry } | null>(null);
 
   const entries = list.data ?? [];
   const filtered = useMemo(() => {
@@ -73,6 +74,15 @@ export function Resources({ resource }: { resource: ResourceId }) {
             <RotateCcw size={14} />
             {t.common.refresh}
           </Button>
+          {resource === "agents" && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => mutate(() => ipc.unpackBundledAgents(), t.resources.reimportMissing)}
+            >
+              {t.resources.reimportMissing}
+            </Button>
+          )}
           <Button variant="primary" size="sm" onClick={() => setCreating(true)}>
             <Plus size={14} />
             {t.common.create}
@@ -88,10 +98,20 @@ export function Resources({ resource }: { resource: ResourceId }) {
         <EmptyState
           title={t.common.empty}
           action={
-            <Button variant="primary" size="sm" onClick={() => setCreating(true)}>
-              <Plus size={14} />
-              {t.common.create}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="primary" size="sm" onClick={() => setCreating(true)}>
+                <Plus size={14} />
+                {t.common.create}
+              </Button>
+              {resource === "agents" && (
+                <Button
+                  size="sm"
+                  onClick={() => mutate(() => ipc.unpackBundledAgents(), t.resources.unpack)}
+                >
+                  {t.resources.unpack}
+                </Button>
+              )}
+            </div>
           }
         />
       ) : (
@@ -121,7 +141,9 @@ export function Resources({ resource }: { resource: ResourceId }) {
                   <span
                     className={cn(
                       "h-1.5 w-1.5 shrink-0 rounded-full",
-                      e.enabled ? "bg-[var(--color-accent)]" : "bg-[var(--color-border-strong)]",
+                      (resource === "agents" ? !e.agentDisabled : e.enabled)
+                        ? "bg-[var(--color-accent)]"
+                        : "bg-[var(--color-border-strong)]",
                     )}
                   />
                 </button>
@@ -133,10 +155,19 @@ export function Resources({ resource }: { resource: ResourceId }) {
             <div className="flex min-w-0 flex-1 flex-col">
               <div className="flex items-center gap-2 border-b border-[var(--color-border)] px-4 py-2.5">
                 <span className="text-[13px] font-medium text-[var(--color-fg)]">{current.name}</span>
-                <Badge tone={current.enabled ? "ok" : "neutral"}>
-                  {current.enabled ? t.common.enabled : t.common.disabled}
+                <Badge tone={(resource === "agents" ? !current.agentDisabled : current.enabled) ? "ok" : "neutral"}>
+                  {(resource === "agents" ? !current.agentDisabled : current.enabled) ? t.common.enabled : t.common.disabled}
                 </Badge>
                 <div className="ml-auto flex items-center gap-0.5">
+                  {resource === "agents" && current.bundled && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setConfirm({ kind: "default", entry: current })}
+                    >
+                      {t.resources.restoreDefault}
+                    </Button>
+                  )}
                   {current.hasBackup && (
                     <Button
                       size="sm"
@@ -172,6 +203,7 @@ export function Resources({ resource }: { resource: ResourceId }) {
               )}
 
               <div className="min-h-0 flex-1 overflow-auto p-3">
+                {resource === "agents" && current && <AgentSettings entry={current} onChanged={list.reload} />}
                 <EntryEditor
                   resource={resource}
                   name={current.name}
@@ -182,13 +214,13 @@ export function Resources({ resource }: { resource: ResourceId }) {
 
               <div className="flex items-center gap-3 border-t border-[var(--color-border)] px-4 py-2">
                 <Switch
-                  checked={current.enabled}
+                  checked={resource === "agents" ? !current.agentDisabled : current.enabled}
                   disabled={current.foreign}
                   label={t.common.enabled}
                   onChange={(v) => mutate(() => ipc.setResourceEnabled(resource, current.name, v), t.common.save)}
                 />
                 <span className="text-[12px] text-[var(--color-fg-muted)]">
-                  {current.enabled ? t.common.enabled : t.common.disabled}
+                  {(resource === "agents" ? !current.agentDisabled : current.enabled) ? t.common.enabled : t.common.disabled}
                 </span>
                 <span className="ml-auto font-mono text-[11px] text-[var(--color-fg-subtle)]">
                   {bytes(current.size)} · {relativeTime(current.modified)}
@@ -218,16 +250,24 @@ export function Resources({ resource }: { resource: ResourceId }) {
       <ConfirmDialog
         open={confirm !== null}
         title={
-          confirm?.kind === "delete" ? t.common.delete : confirm?.kind === "restore" ? t.common.restore : t.common.adopt
+          confirm?.kind === "delete"
+            ? t.common.delete
+            : confirm?.kind === "default"
+              ? t.resources.restoreDefault
+              : confirm?.kind === "restore"
+                ? t.common.restore
+                : t.common.adopt
         }
         message={
           !confirm
             ? ""
             : confirm.kind === "delete"
               ? t.resources.deleteConfirm.replace("{name}", confirm.entry.name)
-              : confirm.kind === "restore"
-                ? t.resources.restoreConfirm.replace("{name}", confirm.entry.name)
-                : t.resources.attachConfirm.replace("{name}", confirm.entry.name)
+              : confirm.kind === "default"
+                ? t.resources.restoreDefaultConfirm.replace("{name}", confirm.entry.name)
+                : confirm.kind === "restore"
+                  ? t.resources.restoreConfirm.replace("{name}", confirm.entry.name)
+                  : t.resources.attachConfirm.replace("{name}", confirm.entry.name)
         }
         confirmLabel={confirm?.kind === "delete" ? t.common.delete : t.common.confirm}
         danger={confirm?.kind === "delete"}
@@ -236,12 +276,48 @@ export function Resources({ resource }: { resource: ResourceId }) {
           const c = confirm!;
           setConfirm(null);
           if (c.kind === "delete") void mutate(() => ipc.deleteResource(resource, c.entry.name), t.common.delete);
+          else if (c.kind === "default")
+            void mutate(() => ipc.restoreAgentDefault(c.entry.name), t.resources.restoreDefault);
           else if (c.kind === "restore")
             void mutate(() => ipc.restoreResource(resource, c.entry.name), t.common.restore);
           else void mutate(() => ipc.adoptResource(resource, c.entry.name), t.common.adopt);
         }}
       />
     </PageContainer>
+  );
+}
+
+function AgentSettings({ entry, onChanged }: { entry: ResourceEntry; onChanged: () => void }) {
+  const { t } = useApp();
+  const refs = useAsync<string[]>(() => ipc.listModelRefs().then((r) => r.map((m) => m.id)), [entry.name]);
+  const model = entry.agentModel ?? "";
+  const update = async (selector: string) => {
+    try {
+      await ipc.setAgentModel(entry.name, selector);
+      toast.success(t.common.save, entry.name);
+      onChanged();
+    } catch (e) {
+      toast.error(t.common.save, errorText(e));
+    }
+  };
+  const options = refs.data ?? [];
+  return (
+    <div className="mb-3">
+      <Field label={t.resources.agentModel}>
+        <Select
+          className="min-w-[240px]"
+          value={options.includes(model) ? model : ""}
+          onChange={(e) => update(e.target.value)}
+        >
+          <option value="">{model ? `${t.models.unset} (${model})` : t.models.unset}</option>
+          {options.filter((s) => s !== model).map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </Select>
+      </Field>
+    </div>
   );
 }
 

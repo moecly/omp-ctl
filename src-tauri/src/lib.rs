@@ -83,6 +83,7 @@ fn list_model_refs() -> Result<Vec<ModelRef>> {
             out.push(ModelRef {
                 id: format!("{}/{}", p.id, m.id),
                 name: m.name,
+                thinking: Vec::new(),
             });
         }
     }
@@ -320,6 +321,24 @@ fn restore_resource(resource: String, name: String) -> Result<ResourceEntry> {
 }
 
 #[tauri::command]
+fn unpack_bundled_agents() -> Result<Vec<ResourceEntry>> {
+    let agent = paths::agent_dir()?;
+    resources::unpack_bundled_agents(&agent)
+}
+
+#[tauri::command]
+fn set_agent_model(name: String, selector: String) -> Result<ResourceEntry> {
+    let agent = paths::agent_dir()?;
+    resources::set_agent_model(&agent, &name, &selector)
+}
+
+#[tauri::command]
+fn restore_agent_default(name: String) -> Result<ResourceEntry> {
+    let agent = paths::agent_dir()?;
+    resources::restore_agent_default(&agent, &name)
+}
+
+#[tauri::command]
 fn list_builtin_tools() -> Result<Vec<BuiltinTool>> {
     resources::builtin_tools()
 }
@@ -416,6 +435,9 @@ pub fn run() {
             delete_resource,
             set_resource_enabled,
             restore_resource,
+            unpack_bundled_agents,
+            set_agent_model,
+            restore_agent_default,
             list_builtin_tools,
             read_builtin_tool_doc,
             discover_skills,

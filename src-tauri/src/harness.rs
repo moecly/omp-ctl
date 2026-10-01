@@ -198,6 +198,21 @@ pub fn restore_resource(resource: String, name: String) -> Result<ResourceEntry>
     crate::resources::restore(&agent, &resource, &name)
 }
 
+pub fn unpack_bundled_agents() -> Result<Vec<ResourceEntry>> {
+    let agent = paths::agent_dir()?;
+    crate::resources::unpack_bundled_agents(&agent)
+}
+
+pub fn set_agent_model(name: String, selector: String) -> Result<ResourceEntry> {
+    let agent = paths::agent_dir()?;
+    crate::resources::set_agent_model(&agent, &name, &selector)
+}
+
+pub fn restore_agent_default(name: String) -> Result<ResourceEntry> {
+    let agent = paths::agent_dir()?;
+    crate::resources::restore_agent_default(&agent, &name)
+}
+
 pub fn builtin_tools() -> Result<Vec<BuiltinTool>> {
     crate::resources::builtin_tools()
 }

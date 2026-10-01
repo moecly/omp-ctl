@@ -83,6 +83,12 @@ pub struct ResourceEntry {
     pub size: Option<u64>,
     pub modified: Option<u64>,
     pub summary: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent_model: Option<String>,
+    #[serde(default)]
+    pub agent_disabled: bool,
+    #[serde(default)]
+    pub bundled: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -176,6 +182,36 @@ fn store_root(spec: &ResourceSpec) -> Result<PathBuf> {
     Ok(crate::paths::store_dir()?.join(spec.store_sub))
 }
 
+fn stem(name: &str) -> &str {
+    name.rsplit_once('.').map(|(s, _)| s).unwrap_or(name)
+}
+
+fn task_maps() -> (Vec<String>, std::collections::BTreeMap<String, String>) {
+    let Ok(root) = crate::config_edit::read_json() else {
+        return (Vec::new(), std::collections::BTreeMap::new());
+    };
+    let task = root.get("task");
+    let disabled = task
+        .and_then(|t| t.get("disabledAgents"))
+        .and_then(|v| v.as_array())
+        .map(|a| {
+            a.iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect()
+        })
+        .unwrap_or_default();
+    let overrides = task
+        .and_then(|t| t.get("agentModelOverrides"))
+        .and_then(|v| v.as_object())
+        .map(|m| {
+            m.iter()
+                .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                .collect()
+        })
+        .unwrap_or_default();
+    (disabled, overrides)
+}
+
 fn agent_root(agent: &Path, spec: &ResourceSpec) -> PathBuf {
     agent.join(spec.agent_sub)
 }
@@ -209,6 +245,19 @@ pub fn entry_of(agent: &Path, spec: &ResourceSpec, name: &str) -> Result<Resourc
         .or_else(|_| fs::metadata(&store_path))
         .ok();
     let summary = summary_of(spec, &agent_path).or_else(|| summary_of(spec, &store_path));
+    let (agent_model, agent_disabled, bundled) = if spec.id == "agents" {
+        static BUNDLED: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
+        let (disabled, overrides) = task_maps();
+        let key = stem(name).to_string();
+        let names = BUNDLED.get_or_init(|| bundled_agent_names().unwrap_or_default());
+        (
+            overrides.get(&key).cloned(),
+            disabled.iter().any(|d| d == &key),
+            names.iter().any(|b| b == name),
+        )
+    } else {
+        (None, false, false)
+    };
 
     Ok(ResourceEntry {
         resource: spec.id.to_string(),
@@ -227,6 +276,9 @@ pub fn entry_of(agent: &Path, spec: &ResourceSpec, name: &str) -> Result<Resourc
             .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
             .map(|d| d.as_secs()),
         summary,
+        agent_model,
+        agent_disabled,
+        bundled,
     })
 }
 
@@ -317,6 +369,9 @@ pub fn set_enabled(
 ) -> Result<ResourceEntry> {
     let spec = spec(resource)?;
     validate_name(name)?;
+    if spec.id == "agents" {
+        return set_agent_disabled(agent, name, !enabled);
+    }
     if enabled {
         store::adopt_rel(agent, &rel(spec, name))?;
     } else {
@@ -337,6 +392,112 @@ pub fn restore(agent: &Path, resource: &str, name: &str) -> Result<ResourceEntry
     let spec = spec(resource)?;
     validate_name(name)?;
     store::restore_backup_rel(agent, &rel(spec, name))?;
+    entry_of(agent, spec, name)
+}
+
+fn write_task_list(key: &str, items: &[String]) -> Result<()> {
+    let raw = serde_json::to_string(items)?;
+    crate::config_edit::set_raw(&["task", key], &raw)
+}
+
+fn write_task_map(key: &str, map: &std::collections::BTreeMap<String, String>) -> Result<()> {
+    let raw = if map.is_empty() {
+        "{}".to_string()
+    } else {
+        serde_json::to_string(map)?
+    };
+    crate::config_edit::set_raw(&["task", key], &raw)
+}
+
+pub fn set_agent_disabled(agent: &Path, name: &str, disabled: bool) -> Result<ResourceEntry> {
+    let spec = spec("agents")?;
+    validate_name(name)?;
+    let key = stem(name).to_string();
+    let (mut list, _) = task_maps();
+    if disabled {
+        if !list.iter().any(|d| d == &key) {
+            list.push(key);
+        }
+    } else {
+        list.retain(|d| d != &key);
+    }
+    write_task_list("disabledAgents", &list)?;
+    entry_of(agent, spec, name)
+}
+
+pub fn set_agent_model(agent: &Path, name: &str, selector: &str) -> Result<ResourceEntry> {
+    let spec = spec("agents")?;
+    validate_name(name)?;
+    let key = stem(name).to_string();
+    let (_, mut map) = task_maps();
+    let selector = selector.trim();
+    if selector.is_empty() {
+        map.remove(&key);
+    } else {
+        map.insert(key, selector.to_string());
+    }
+    write_task_map("agentModelOverrides", &map)?;
+    entry_of(agent, spec, name)
+}
+
+pub fn unpack_bundled_agents(agent: &Path) -> Result<Vec<ResourceEntry>> {
+    proc::omp(&["agents", "unpack"])?;
+    list(agent, "agents")
+}
+
+fn unpack_to_temp() -> Result<(std::path::PathBuf, Vec<String>)> {
+    let tmp = std::env::temp_dir().join(format!(
+        "omp-ctl-agents-{}-{:?}",
+        std::process::id(),
+        std::thread::current().id()
+    ));
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(&tmp).map_err(|e| AppError::fs(&tmp, e.to_string()))?;
+    let out = proc::omp(&["agents", "unpack", "--dir", &tmp.to_string_lossy(), "--json"])?;
+    let mut names: Vec<String> = Vec::new();
+    if let Ok(v) = serde_json::from_str::<serde_json::Value>(&out) {
+        for key in ["written", "skipped"] {
+            if let Some(arr) = v.get(key).and_then(|w| w.as_array()) {
+                for item in arr.iter().filter_map(|w| w.as_str()) {
+                    if let Some(base) = std::path::Path::new(item).file_name().and_then(|s| s.to_str()) {
+                        if !names.contains(&base.to_string()) {
+                            names.push(base.to_string());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    names.sort();
+    Ok((tmp, names))
+}
+
+pub fn bundled_agent_names() -> Result<Vec<String>> {
+    let (tmp, names) = unpack_to_temp()?;
+    let _ = std::fs::remove_dir_all(&tmp);
+    Ok(names)
+}
+
+pub fn restore_agent_default(agent: &Path, name: &str) -> Result<ResourceEntry> {
+    let spec = spec("agents")?;
+    validate_name(name)?;
+    let (tmp, _) = unpack_to_temp()?;
+    let src = tmp.join(name);
+    if !src.is_file() {
+        let _ = std::fs::remove_dir_all(&tmp);
+        return Err(AppError::validation("name", format!("{name} 不是内置 agent，无法恢复默认")));
+    }
+    let bytes = std::fs::read(&src).map_err(|e| AppError::fs(&src, e.to_string()))?;
+    let _ = std::fs::remove_dir_all(&tmp);
+    let store_path = store_root(spec)?.join(name);
+    if let Some(parent) = store_path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| AppError::fs(parent, e.to_string()))?;
+    }
+    if store_path.exists() {
+        store::backup_file(&store_path)?;
+    }
+    store::write_atomic(&store_path, &bytes)?;
+    store::adopt_rel(agent, &rel(spec, name))?;
     entry_of(agent, spec, name)
 }
 
@@ -458,6 +619,9 @@ pub fn managed_skills(agent: &Path) -> Result<Vec<ResourceEntry>> {
                 .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
                 .map(|d| d.as_secs()),
             summary: summary_of(&RESOURCES[0], &path),
+            agent_model: None,
+            agent_disabled: false,
+            bundled: false,
         });
     }
     out.sort_by(|a, b| a.name.cmp(&b.name));
