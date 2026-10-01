@@ -14,17 +14,17 @@ web/                    React + TypeScript + Vite + Tailwind v4 前端（bun 管
     hooks/              useAsync（加载/错误/reload）、useApp（全局上下文）
     components/ui/      UI 原语（Button/Input/Dialog/CodeEditor/Tabs/...），纯 Tailwind
     components/shell/   AppShell、Sidebar、Header、CommandPalette、PageContainer
-    pages/              12 个路由页面
+    pages/              13 个路由页面（含 Backup 快照导出/导入）
 dist/                   `just web-build` 产物（gitignore，Tauri frontendDist）
 src-tauri/src/
-  lib.rs                Tauri 命令注册（42 个）+ SANDBOX_LOCK(cfg test)
+  lib.rs                Tauri 命令注册（46 个）+ SANDBOX_LOCK(cfg test)
   main.rs               3 行，调用 omp_ctl_lib::run()
   error.rs              AppError（serde tag="kind"）；Result<T, E = AppError>
   paths.rs              home/store_dir/agent_dir 解析 + DirInfo/DirSource（agent_dir 经 OnceLock 进程内缓存，避免每命令起 omp 子进程）
   proc.rs               omp 子进程封装
-  store.rs              链接状态、接管、还原、原子写、.links.json
+  store.rs              链接状态、接管、还原、原子写、.links.json、快照导出/导入
   yaml.rs               YamlDoc：行区间 YAML 编辑，保留注释
-  models.rs             Provider/ModelEntry、读写、探测、默认模型
+  models.rs             Provider/ModelEntry、读写、探测、模型目录（`models/tests.rs`）、默认模型
   roles.rs              modelRoles / cycleOrder
   config_edit.rs        config.yml 嵌套标量写入（`config_edit/tests.rs`）
   settings.rs           `omp config list --json` 目录（`settings/tests.rs`）

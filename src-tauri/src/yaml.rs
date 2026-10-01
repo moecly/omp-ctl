@@ -235,7 +235,6 @@ impl YamlDoc {
         self.set_provider(id, rendered)
     }
 
-
     pub fn remove(&mut self, id: &str) -> Result<bool> {
         let mut lines: Vec<String> = self.text.lines().map(|s| s.to_string()).collect();
         let refs: Vec<&str> = lines.iter().map(|s| s.as_str()).collect();
@@ -267,7 +266,12 @@ impl YamlDoc {
 fn normalize(lines: Vec<String>) -> String {
     let mut out: Vec<String> = Vec::with_capacity(lines.len());
     for line in lines {
-        if line.trim().is_empty() && out.last().map(|l: &String| l.trim().is_empty()).unwrap_or(true) {
+        if line.trim().is_empty()
+            && out
+                .last()
+                .map(|l: &String| l.trim().is_empty())
+                .unwrap_or(true)
+        {
             continue;
         }
         out.push(line.trim_end().to_string());
@@ -280,7 +284,5 @@ fn normalize(lines: Vec<String>) -> String {
     text
 }
 
-
 #[cfg(test)]
 mod tests;
-

@@ -3,6 +3,7 @@ import { cachedInvoke, invalidate, prefetch } from "./queryCache";
 
 import type {
   BuiltinTool,
+  CatalogModel,
   DirInfo,
   DiscoveredSkill,
   Json,
@@ -56,11 +57,28 @@ export const ipc = {
   },
   probeModels: (baseUrl: string, apiKey: string, authNone: boolean) =>
     invoke<string[]>("probe_models", { baseUrl, apiKey, authNone }),
+  catalogModels: (provider: string) => invoke<CatalogModel[]>("catalog_models", { provider }),
   setDefaultModel: async (selector: string) => {
     await invoke<void>("set_default_model", { selector });
+    invalidate("default-model");
     invalidate("model-refs");
     invalidate("overview");
     invalidate("model-roles");
+  },
+  getDefaultModel: () => get("default-model", () => invoke<string | null>("get_default_model")),
+  exportSnapshot: () => invoke<string>("export_snapshot"),
+  importSnapshot: async (path: string) => {
+    await invoke<void>("import_snapshot", { path });
+    invalidate("overview");
+    invalidate("model-roles");
+    invalidate("providers");
+    invalidate("provider");
+    invalidate("model-refs");
+    invalidate("prompts");
+    invalidate("prompt");
+    invalidate("mcp");
+    invalidate("resource");
+    invalidate("settings");
   },
 
   listPrompts: () => get("prompts", () => invoke<PromptState[]>("list_prompts")),
@@ -206,6 +224,7 @@ export function prefetchRoute(page: string, param?: string) {
     case "models":
       prefetch("providers", () => invoke("list_providers"), TTL);
       prefetch("model-refs", () => invoke("list_model_refs"), TTL);
+      prefetch("default-model", () => invoke("get_default_model"), TTL);
       break;
     case "roles":
       prefetch("model-roles", () => invoke("list_model_roles"), TTL);

@@ -81,7 +81,10 @@ fn agent_dir_uncached() -> Result<(PathBuf, DirSource)> {
     if let Some(p) = profile {
         let p = p.trim();
         if p != "default" && p != "blank" {
-            return Ok((home()?.join(".omp/profiles").join(p).join("agent"), DirSource::EnvProfile));
+            return Ok((
+                home()?.join(".omp/profiles").join(p).join("agent"),
+                DirSource::EnvProfile,
+            ));
         }
     }
 

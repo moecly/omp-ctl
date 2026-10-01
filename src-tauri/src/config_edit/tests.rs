@@ -11,7 +11,9 @@ struct Sandbox {
 
 impl Sandbox {
     fn new(tag: &str) -> Sandbox {
-        let guard = crate::SANDBOX_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let guard = crate::SANDBOX_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let root = std::env::temp_dir().join(format!(
             "omp-ctl-cfg-{tag}-{}-{:?}",
             std::process::id(),

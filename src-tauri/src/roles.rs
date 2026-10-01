@@ -34,6 +34,15 @@ pub fn list() -> Result<ModelRoles> {
     Ok(ModelRoles { roles, cycle_order })
 }
 
+pub fn get_default() -> Result<Option<String>> {
+    let root = config_edit::read_json()?;
+    Ok(root
+        .get("modelRoles")
+        .and_then(|v| v.get("default"))
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string()))
+}
+
 fn validate_role(role: &str) -> Result<String> {
     let role = role.trim();
     if role.is_empty() {

@@ -38,7 +38,19 @@ export interface ModelEntry {
   imageInput: boolean;
   contextWindow?: number;
   maxTokens?: number;
+  thinkingLevel?: string;
   raw: Json;
+}
+
+export interface CatalogModel {
+  provider: string;
+  id: string;
+  name?: string;
+  contextWindow?: number;
+  maxTokens?: number;
+  reasoning: boolean;
+  thinking: string[];
+  imageInput: boolean;
 }
 
 export interface Provider {

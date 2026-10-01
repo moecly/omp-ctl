@@ -20,14 +20,20 @@ fn dir_info_reports_a_store_and_agent_directory() {
 }
 
 #[test]
-fn providers_load_from_the_resolved_agent_dir() {
+fn catalog_returns_models_for_first_provider() {
     if !real_agent_dir_available() {
         eprintln!("skipping: no agent directory resolvable");
         return;
     }
     let providers = harness::summaries().unwrap();
-    for p in &providers {
-        assert!(!p.id.is_empty());
+    let Some(first) = providers.first() else {
+        eprintln!("skipping: no providers in agent directory");
+        return;
+    };
+    let items = harness::catalog(first.id.clone()).unwrap();
+    assert!(!items.is_empty());
+    for m in &items {
+        assert!(!m.id.is_empty());
     }
 }
 
@@ -52,7 +58,14 @@ fn resources_enumerate_without_error() {
         eprintln!("skipping: no agent directory resolvable");
         return;
     }
-    for id in ["skills", "agents", "hooks_pre", "hooks_post", "extensions", "tools"] {
+    for id in [
+        "skills",
+        "agents",
+        "hooks_pre",
+        "hooks_post",
+        "extensions",
+        "tools",
+    ] {
         let entries = harness::resources(id.to_string()).unwrap_or_else(|e| panic!("{id}: {e}"));
         for e in &entries {
             assert_eq!(e.resource, id);

@@ -75,6 +75,18 @@ pub fn set_default(selector: String) -> Result<()> {
     models::set_default_model(&selector)
 }
 
+pub fn export_snapshot() -> Result<PathBuf> {
+    store::export_snapshot()
+}
+
+pub fn import_snapshot(path: PathBuf) -> Result<()> {
+    store::import_snapshot(&path)
+}
+
+pub fn get_default_model() -> Result<Option<String>> {
+    crate::roles::get_default()
+}
+
 pub fn prompts() -> Result<Vec<PromptState>> {
     prompts::list()
 }
@@ -102,6 +114,10 @@ pub fn restore_prompt(key: String) -> Result<PromptState> {
 
 pub fn probe(base_url: String, api_key: String, auth_none: bool) -> Result<Vec<String>> {
     models::probe(&base_url, &api_key, auth_none)
+}
+
+pub fn catalog(provider: String) -> Result<Vec<models::CatalogModel>> {
+    models::catalog(&provider)
 }
 
 pub fn meta() -> Result<std::collections::BTreeMap<String, store::LinkMeta>> {

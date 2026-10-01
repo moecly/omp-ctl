@@ -18,6 +18,7 @@ export interface Strings {
     memory: string;
     settings: string;
     extensions: string;
+    backup: string;
   };
   common: {
     save: string;
@@ -60,6 +61,8 @@ export interface Strings {
     add: string;
     copy: string;
     copied: string;
+    show: string;
+    hide: string;
     unsaved: string;
     dirty: string;
     expand: string;
@@ -92,6 +95,7 @@ export interface Strings {
     tools: string;
     memory: string;
     settings: string;
+    backup: string;
   };
   overview: {
     title: string;
@@ -113,6 +117,8 @@ export interface Strings {
     add: string;
     baseUrl: string;
     api: string;
+    apiCustom: string;
+    apiCustomPlaceholder: string;
     apiKey: string;
     authNone: string;
     strictTools: string;
@@ -122,6 +128,11 @@ export interface Strings {
     probe: string;
     probing: string;
     probeResult: string;
+    fetchTitle: string;
+    fetchAdd: string;
+    fetchExists: string;
+    selectAll: string;
+    probeNoId: string;
     editTitle: string;
     newTitle: string;
     idHint: string;
@@ -138,6 +149,8 @@ export interface Strings {
     maxTokens: string;
     reasoning: string;
     imageInput: string;
+    thinkingLevel: string;
+    unset: string;
   };
   roles: {
     title: string;
@@ -146,6 +159,7 @@ export interface Strings {
     cycleHint: string;
     deleteConfirm: string;
     selectorHint: string;
+    quickAdd: string;
   };
   prompts: {
     title: string;
@@ -202,6 +216,17 @@ export interface Strings {
     enumHint: string;
     arrayHint: string;
   };
+  backup: {
+    title: string;
+    export: string;
+    exported: string;
+    import: string;
+    imported: string;
+    pathLabel: string;
+    pathPlaceholder: string;
+    reveal: string;
+    importConfirm: string;
+  };
 }
 
 const zh: Strings = {
@@ -225,6 +250,7 @@ const zh: Strings = {
     memory: "记忆",
     settings: "设置",
     extensions: "扩展",
+    backup: "备份迁移",
   },
   common: {
     save: "保存",
@@ -267,6 +293,8 @@ const zh: Strings = {
     add: "添加",
     copy: "复制",
     copied: "已复制",
+    show: "显示",
+    hide: "隐藏",
     unsaved: "未保存",
     dirty: "有未保存的修改",
     expand: "展开",
@@ -299,6 +327,7 @@ const zh: Strings = {
     tools: "tools/ · skills/",
     memory: "memory.backend",
     settings: "{n} 个配置项",
+    backup: "store/backup/migrate-<ts>.tar.gz",
   },
   overview: {
     title: "总览",
@@ -320,6 +349,8 @@ const zh: Strings = {
     add: "新建服务商",
     baseUrl: "Base URL",
     api: "API 协议",
+    apiCustom: "自定义",
+    apiCustomPlaceholder: "输入自定义协议",
     apiKey: "API Key",
     authNone: "无需鉴权",
     strictTools: "禁用严格工具校验",
@@ -329,6 +360,11 @@ const zh: Strings = {
     probe: "探测模型",
     probing: "探测中…",
     probeResult: "探测到 {n} 个模型",
+    fetchTitle: "选择要添加的模型",
+    fetchAdd: "添加模型",
+    fetchExists: "已存在",
+    selectAll: "全选",
+    probeNoId: "请先填写服务商 ID",
     editTitle: "编辑服务商",
     newTitle: "新建服务商",
     idHint: "仅限字母、数字、- 和 _",
@@ -345,6 +381,8 @@ const zh: Strings = {
     maxTokens: "最大输出",
     reasoning: "推理",
     imageInput: "图像输入",
+    thinkingLevel: "思考等级",
+    unset: "未设置",
   },
   roles: {
     title: "模型角色",
@@ -353,6 +391,7 @@ const zh: Strings = {
     cycleHint: "用逗号分隔角色名，决定切换模型的顺序",
     deleteConfirm: "确定删除角色 {role}？",
     selectorHint: "形如 provider/model，可带 :off 等后缀",
+    quickAdd: "常用角色快捷添加",
   },
   prompts: {
     title: "系统提示词",
@@ -409,6 +448,17 @@ const zh: Strings = {
     enumHint: "从下列选项中选择",
     arrayHint: "JSON 数组，如 [\"a\",\"b\"]",
   },
+  backup: {
+    title: "备份迁移",
+    export: "导出备份",
+    exported: "已导出到 {path}",
+    import: "导入备份",
+    imported: "已导入 {path}",
+    pathLabel: "备份文件路径",
+    pathPlaceholder: "~/.omp-ctl/store/backup/migrate-<ts>.tar.gz",
+    reveal: "打开备份目录",
+    importConfirm: "确定从 {path} 导入？当前文件会被备份。",
+  },
 };
 
 const en: Strings = {
@@ -432,6 +482,7 @@ const en: Strings = {
     memory: "Memory",
     settings: "Settings",
     extensions: "Extensions",
+    backup: "Backup",
   },
   common: {
     save: "Save",
@@ -474,6 +525,8 @@ const en: Strings = {
     add: "Add",
     copy: "Copy",
     copied: "Copied",
+    show: "Show",
+    hide: "Hide",
     unsaved: "Unsaved",
     dirty: "Unsaved changes",
     expand: "Expand",
@@ -506,6 +559,7 @@ const en: Strings = {
     tools: "tools/ · skills/",
     memory: "memory.backend",
     settings: "{n} keys",
+    backup: "store/backup/migrate-<ts>.tar.gz",
   },
   overview: {
     title: "Overview",
@@ -527,6 +581,8 @@ const en: Strings = {
     add: "New provider",
     baseUrl: "Base URL",
     api: "API protocol",
+    apiCustom: "Custom",
+    apiCustomPlaceholder: "Enter custom protocol",
     apiKey: "API key",
     authNone: "No auth",
     strictTools: "Disable strict tool validation",
@@ -536,6 +592,11 @@ const en: Strings = {
     probe: "Probe models",
     probing: "Probing…",
     probeResult: "Found {n} models",
+    fetchTitle: "Select models to add",
+    fetchAdd: "Add models",
+    fetchExists: "Exists",
+    selectAll: "Select all",
+    probeNoId: "Fill in the provider ID first",
     editTitle: "Edit provider",
     newTitle: "New provider",
     idHint: "Letters, digits, - and _ only",
@@ -552,6 +613,8 @@ const en: Strings = {
     maxTokens: "Max output",
     reasoning: "Reasoning",
     imageInput: "Image input",
+    thinkingLevel: "Thinking level",
+    unset: "Unset",
   },
   roles: {
     title: "Model Roles",
@@ -560,6 +623,7 @@ const en: Strings = {
     cycleHint: "Comma-separated role names, in model-cycling order",
     deleteConfirm: "Delete role {role}?",
     selectorHint: "provider/model, optional :suffix",
+    quickAdd: "Quick-add common roles",
   },
   prompts: {
     title: "System Prompts",
@@ -615,6 +679,17 @@ const en: Strings = {
     tabs: "Categories",
     enumHint: "Pick one of these options",
     arrayHint: "JSON array, e.g. [\"a\",\"b\"]",
+  },
+  backup: {
+    title: "Backup",
+    export: "Export snapshot",
+    exported: "Exported to {path}",
+    import: "Import snapshot",
+    imported: "Imported {path}",
+    pathLabel: "Snapshot path",
+    pathPlaceholder: "~/.omp-ctl/store/backup/migrate-<ts>.tar.gz",
+    reveal: "Reveal backup dir",
+    importConfirm: "Import from {path}? Current files will be backed up.",
   },
 };
 

@@ -11,7 +11,9 @@ struct Sandbox {
 
 impl Sandbox {
     fn new(tag: &str) -> Sandbox {
-        let guard = crate::SANDBOX_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let guard = crate::SANDBOX_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let root = std::env::temp_dir().join(format!(
             "omp-ctl-res-{tag}-{}-{:?}",
             std::process::id(),
@@ -47,9 +49,17 @@ impl Drop for Sandbox {
 fn list_merges_store_and_agent() {
     let sb = Sandbox::new("merge");
     fs::create_dir_all(sb.store().join("agents")).unwrap();
-    fs::write(sb.store().join("agents/only-store.md"), "---\ndescription: S\n---\n").unwrap();
+    fs::write(
+        sb.store().join("agents/only-store.md"),
+        "---\ndescription: S\n---\n",
+    )
+    .unwrap();
     fs::create_dir_all(sb.agent().join("agents")).unwrap();
-    fs::write(sb.agent().join("agents/only-agent.md"), "---\ndescription: A\n---\n").unwrap();
+    fs::write(
+        sb.agent().join("agents/only-agent.md"),
+        "---\ndescription: A\n---\n",
+    )
+    .unwrap();
 
     let entries = list(&sb.agent(), "agents").unwrap();
     let names: Vec<&str> = entries.iter().map(|e| e.name.as_str()).collect();
@@ -89,7 +99,10 @@ fn set_enabled_false_on_foreign_link_errors() {
         Err(AppError::Validation { field, .. }) => assert_eq!(field, "link"),
         other => panic!("expected validation error, got {other:?}"),
     }
-    assert_eq!(fs::read_link(sb.agent().join("extensions/rtk.ts")).unwrap(), real);
+    assert_eq!(
+        fs::read_link(sb.agent().join("extensions/rtk.ts")).unwrap(),
+        real
+    );
 
     // adoption then makes it manageable
     let adopted = adopt(&sb.agent(), "extensions", "rtk.ts").unwrap();

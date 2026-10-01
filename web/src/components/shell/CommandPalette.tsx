@@ -19,6 +19,7 @@ const PAGES: { page: string; key: keyof Strings["nav"] }[] = [
   { page: "tools", key: "tools" },
   { page: "memory", key: "memory" },
   { page: "settings", key: "settings" },
+  { page: "backup", key: "backup" },
 ];
 
 export function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {

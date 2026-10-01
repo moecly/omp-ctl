@@ -11,7 +11,9 @@ struct Sandbox {
 
 impl Sandbox {
     fn new(tag: &str) -> Sandbox {
-        let guard = crate::SANDBOX_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let guard = crate::SANDBOX_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let root = std::env::temp_dir().join(format!(
             "omp-ctl-mcp-{tag}-{}-{:?}",
             std::process::id(),
@@ -80,12 +82,19 @@ fn upsert_preserves_schema_key() {
     .unwrap();
 
     let out = sb.read_store();
-    assert!(out.starts_with("{\n  \"$schema\""), "unexpected head: {out}");
+    assert!(
+        out.starts_with("{\n  \"$schema\""),
+        "unexpected head: {out}"
+    );
     assert!(out.contains("\"codegraph\""));
     assert!(out.contains("\"e2e\""));
 
     remove(&sb.agent(), "e2e").unwrap();
-    let names: Vec<String> = list(&sb.agent()).unwrap().into_iter().map(|s| s.name).collect();
+    let names: Vec<String> = list(&sb.agent())
+        .unwrap()
+        .into_iter()
+        .map(|s| s.name)
+        .collect();
     assert_eq!(names, vec!["codegraph"]);
 }
 

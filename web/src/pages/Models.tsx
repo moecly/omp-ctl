@@ -30,13 +30,16 @@ export function Models() {
     });
   }, [providers.data, query, providerFilter]);
 
-  const defaultId = refs.data?.[0]?.id ?? "";
+  const def = useAsync<string | null>(() => ipc.getDefaultModel(), []);
+  const defaultId = def.data ?? "";
 
   const setDefault = async (selector: string) => {
+    if (!selector.trim()) return;
     setSaving(true);
     try {
       await ipc.setDefaultModel(selector);
       toast.success(t.models.setDefault, selector);
+      def.reload();
       refs.reload();
     } catch (e) {
       toast.error(t.models.setDefault, errorText(e));
@@ -56,7 +59,7 @@ export function Models() {
   if (refs.error) {
     return (
       <PageContainer title={t.models.title} description={t.pageDesc.models.replace("{n}", String(providers.data?.length ?? 0))}>
-        <PageError message={refs.error} onRetry={() => { providers.reload(); refs.reload(); }} />
+        <PageError message={refs.error} onRetry={() => { providers.reload(); refs.reload(); def.reload(); }} />
       </PageContainer>
     );
   }
@@ -72,6 +75,7 @@ export function Models() {
           onClick={() => {
             providers.reload();
             refs.reload();
+            def.reload();
           }}
         >
           <RotateCcw size={14} />
@@ -79,7 +83,8 @@ export function Models() {
         </Button>
       }
     >
-      {providers.error && <PageError message={providers.error} onRetry={() => { providers.reload(); refs.reload(); }} />}
+      {providers.error && <PageError message={providers.error} onRetry={() => { providers.reload(); refs.reload(); def.reload(); }} />}
+      {def.error && <PageError message={def.error} onRetry={def.reload} />}
 
       <div className="flex items-center gap-3">
         <span className="shrink-0 text-[12px] text-[var(--color-fg-muted)]">{t.models.defaultModel}</span>
@@ -89,6 +94,9 @@ export function Models() {
           onChange={(e) => setDefault(e.target.value)}
           disabled={saving || !refs.data?.length}
         >
+          {defaultId && !(refs.data ?? []).some((r) => r.id === defaultId) && (
+            <option value={defaultId}>{defaultId}</option>
+          )}
           {(refs.data ?? []).map((r) => (
             <option key={r.id} value={r.id}>
               {r.name ? `${r.name} — ${r.id}` : r.id}
@@ -125,6 +133,7 @@ export function Models() {
               <th className="sticky top-0 bg-[var(--color-bg)] py-2 font-medium">{t.common.name}</th>
               <th className="sticky top-0 bg-[var(--color-bg)] py-2 font-medium">{t.models.contextWindow}</th>
               <th className="sticky top-0 bg-[var(--color-bg)] py-2 font-medium">{t.models.maxTokens}</th>
+              <th className="sticky top-0 bg-[var(--color-bg)] py-2 font-medium">{t.models.thinkingLevel}</th>
               <th className="sticky top-0 bg-[var(--color-bg)] py-2 font-medium" />
             </tr>
           </thead>
@@ -141,6 +150,9 @@ export function Models() {
                 </td>
                 <td className="font-mono text-[12px] text-[var(--color-fg-subtle)]">
                   {r.model.maxTokens?.toLocaleString() ?? "—"}
+                </td>
+                <td className="font-mono text-[12px] text-[var(--color-fg-subtle)]">
+                  {r.model.thinkingLevel ?? "—"}
                 </td>
                 <td>
                   <div className="flex items-center justify-end gap-2">

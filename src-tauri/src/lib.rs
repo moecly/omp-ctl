@@ -1,8 +1,8 @@
 #[cfg(test)]
 pub(crate) static SANDBOX_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
-pub mod error;
 mod config_edit;
+pub mod error;
 mod mcp;
 mod models;
 mod overview;
@@ -24,7 +24,7 @@ use serde_json::Value as JValue;
 
 use crate::error::{AppError, Result};
 use crate::mcp::McpServer;
-use crate::models::{ModelRef, Provider, ProviderSummary};
+use crate::models::{CatalogModel, ModelRef, Provider, ProviderSummary};
 use crate::overview::Overview;
 use crate::paths::DirInfo;
 use crate::prompts::PromptState;
@@ -111,7 +111,10 @@ fn delete_provider(id: String) -> Result<bool> {
 fn rename_provider(old_id: String, new_id: String) -> Result<SaveResult> {
     let mut providers = models::load_providers()?;
     let Some(index) = providers.iter().position(|p| p.id == old_id) else {
-        return Err(AppError::validation("id", format!("provider `{old_id}` not found")));
+        return Err(AppError::validation(
+            "id",
+            format!("provider `{old_id}` not found"),
+        ));
     };
     if providers.iter().any(|p| p.id == new_id) {
         return Err(AppError::validation(
@@ -136,8 +139,28 @@ fn probe_models(base_url: String, api_key: String, auth_none: bool) -> Result<Ve
 }
 
 #[tauri::command]
+fn catalog_models(provider: String) -> Result<Vec<CatalogModel>> {
+    models::catalog(&provider)
+}
+
+#[tauri::command]
 fn set_default_model(selector: String) -> Result<()> {
     models::set_default_model(&selector)
+}
+
+#[tauri::command]
+fn get_default_model() -> Result<Option<String>> {
+    roles::get_default()
+}
+
+#[tauri::command]
+fn export_snapshot() -> Result<PathBuf> {
+    store::export_snapshot()
+}
+
+#[tauri::command]
+fn import_snapshot(path: PathBuf) -> Result<()> {
+    store::import_snapshot(&path)
 }
 
 #[tauri::command]
@@ -285,11 +308,7 @@ fn delete_resource(resource: String, name: String) -> Result<()> {
 }
 
 #[tauri::command]
-fn set_resource_enabled(
-    resource: String,
-    name: String,
-    enabled: bool,
-) -> Result<ResourceEntry> {
+fn set_resource_enabled(resource: String, name: String, enabled: bool) -> Result<ResourceEntry> {
     let agent = paths::agent_dir()?;
     resources::set_enabled(&agent, &resource, &name, enabled)
 }
@@ -369,7 +388,9 @@ pub fn run() {
             delete_provider,
             rename_provider,
             probe_models,
+            catalog_models,
             set_default_model,
+            get_default_model,
             list_prompts,
             set_prompt_enabled,
             read_prompt,
@@ -386,6 +407,8 @@ pub fn run() {
             set_model_role,
             delete_model_role,
             set_cycle_order,
+            export_snapshot,
+            import_snapshot,
             list_resources,
             read_resource,
             write_resource,

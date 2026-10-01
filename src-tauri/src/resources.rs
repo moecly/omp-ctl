@@ -37,19 +37,25 @@ pub const RESOURCES: [ResourceSpec; 6] = [
         id: "hooks_pre",
         store_sub: "hooks/pre",
         agent_sub: "hooks/pre",
-        layout: Layout::File { exts: &["ts", "js"] },
+        layout: Layout::File {
+            exts: &["ts", "js"],
+        },
     },
     ResourceSpec {
         id: "hooks_post",
         store_sub: "hooks/post",
         agent_sub: "hooks/post",
-        layout: Layout::File { exts: &["ts", "js"] },
+        layout: Layout::File {
+            exts: &["ts", "js"],
+        },
     },
     ResourceSpec {
         id: "extensions",
         store_sub: "extensions",
         agent_sub: "extensions",
-        layout: Layout::File { exts: &["ts", "js"] },
+        layout: Layout::File {
+            exts: &["ts", "js"],
+        },
     },
     ResourceSpec {
         id: "tools",
@@ -124,12 +130,14 @@ fn rel(spec: &ResourceSpec, name: &str) -> String {
 fn accepts(spec: &ResourceSpec, path: &Path) -> bool {
     match spec.layout {
         Layout::Dir { entry } => path.is_dir() && path.join(entry).is_file(),
-        Layout::File { exts } => path.is_file()
-            && path
-                .extension()
-                .and_then(|e| e.to_str())
-                .map(|e| exts.contains(&e))
-                .unwrap_or(false),
+        Layout::File { exts } => {
+            path.is_file()
+                && path
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .map(|e| exts.contains(&e))
+                    .unwrap_or(false)
+        }
     }
 }
 
@@ -197,7 +205,9 @@ pub fn entry_of(agent: &Path, spec: &ResourceSpec, name: &str) -> Result<Resourc
     let store_exists = store_path.exists();
     let foreign = link.kind == LinkKind::Unmanaged && !store_exists;
 
-    let meta = fs::metadata(&agent_path).or_else(|_| fs::metadata(&store_path)).ok();
+    let meta = fs::metadata(&agent_path)
+        .or_else(|_| fs::metadata(&store_path))
+        .ok();
     let summary = summary_of(spec, &agent_path).or_else(|| summary_of(spec, &store_path));
 
     Ok(ResourceEntry {
@@ -268,7 +278,8 @@ pub fn write(agent: &Path, resource: &str, name: &str, content: &str) -> Result<
     let store_path = store_root(spec)?.join(name);
     let file = match spec.layout {
         Layout::Dir { entry } => {
-            fs::create_dir_all(&store_path).map_err(|e| AppError::fs(&store_path, e.to_string()))?;
+            fs::create_dir_all(&store_path)
+                .map_err(|e| AppError::fs(&store_path, e.to_string()))?;
             store_path.join(entry)
         }
         Layout::File { .. } => store_path.clone(),
@@ -298,7 +309,12 @@ pub fn remove(agent: &Path, resource: &str, name: &str) -> Result<()> {
     store::detach_rel(agent, &rel_path)
 }
 
-pub fn set_enabled(agent: &Path, resource: &str, name: &str, enabled: bool) -> Result<ResourceEntry> {
+pub fn set_enabled(
+    agent: &Path,
+    resource: &str,
+    name: &str,
+    enabled: bool,
+) -> Result<ResourceEntry> {
     let spec = spec(resource)?;
     validate_name(name)?;
     if enabled {
@@ -350,7 +366,11 @@ pub fn builtin_tools() -> Result<Vec<BuiltinTool>> {
 }
 
 pub fn builtin_tool_doc(name: &str) -> Result<String> {
-    if name.is_empty() || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-') {
+    if name.is_empty()
+        || !name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+    {
         return Err(AppError::validation("name", "invalid tool name"));
     }
     proc::omp(&["read", &format!("omp://tools/{name}.md")])
@@ -417,7 +437,9 @@ pub fn managed_skills(agent: &Path) -> Result<Vec<ResourceEntry>> {
         let Some(name) = entry.file_name().to_str().map(|s| s.to_string()) else {
             continue;
         };
-        let store_path = crate::paths::store_dir()?.join("managed-skills").join(&name);
+        let store_path = crate::paths::store_dir()?
+            .join("managed-skills")
+            .join(&name);
         out.push(ResourceEntry {
             resource: "managed_skills".to_string(),
             name,

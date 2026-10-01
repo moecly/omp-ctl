@@ -49,7 +49,10 @@ fn read_root(agent: &Path) -> Result<Map<String, JValue>> {
 }
 
 fn server_from(name: &str, value: &JValue) -> McpServer {
-    let enabled = value.get("enabled").and_then(|v| v.as_bool()).unwrap_or(true);
+    let enabled = value
+        .get("enabled")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
     McpServer {
         name: name.to_string(),
         enabled,
@@ -71,7 +74,10 @@ fn server_from(name: &str, value: &JValue) -> McpServer {
                     .collect()
             })
             .unwrap_or_default(),
-        url: value.get("url").and_then(|v| v.as_str()).map(|s| s.to_string()),
+        url: value
+            .get("url")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string()),
         raw: value.clone(),
     }
 }

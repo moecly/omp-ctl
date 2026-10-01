@@ -13,7 +13,9 @@ struct Sandbox {
 
 impl Sandbox {
     fn new(tag: &str) -> Sandbox {
-        let guard = crate::SANDBOX_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let guard = crate::SANDBOX_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let root = std::env::temp_dir().join(format!(
             "omp-ctl-{tag}-{}-{:?}",
             std::process::id(),
@@ -94,7 +96,10 @@ fn adopt_symlink_reads_through_and_stores_backup() {
 
     detach(&sb.agent(), "X.md").unwrap();
     assert!(!sb.agent().join("X.md").exists());
-    assert!(sb.store().join("X.md").exists(), "store copy survives detach");
+    assert!(
+        sb.store().join("X.md").exists(),
+        "store copy survives detach"
+    );
 }
 
 #[test]
@@ -108,7 +113,10 @@ fn adopt_regular_file() {
 
     let backup = backups(&sb);
     assert_eq!(backup.len(), 1);
-    assert!(!fs::symlink_metadata(&backup[0]).unwrap().file_type().is_symlink());
+    assert!(!fs::symlink_metadata(&backup[0])
+        .unwrap()
+        .file_type()
+        .is_symlink());
     assert_eq!(read(&backup[0]), "PLAIN");
 
     restore_backup(&sb.agent(), "X.md").unwrap();
@@ -187,7 +195,10 @@ fn link_state_reports_unmanaged_for_foreign_symlink() {
     assert_eq!(state.kind, LinkKind::Unmanaged);
     assert_eq!(state.target.unwrap(), real);
 
-    assert_eq!(link_state(&sb.agent(), "NOPE.md").unwrap().kind, LinkKind::Absent);
+    assert_eq!(
+        link_state(&sb.agent(), "NOPE.md").unwrap().kind,
+        LinkKind::Absent
+    );
 }
 
 #[test]
@@ -230,7 +241,10 @@ fn adopt_rel_takes_over_a_directory() {
     );
 
     detach_rel(&sb.agent(), "skills/foo").unwrap();
-    assert!(sb.store().join("skills/foo/SKILL.md").exists(), "store dir survives detach");
+    assert!(
+        sb.store().join("skills/foo/SKILL.md").exists(),
+        "store dir survives detach"
+    );
 }
 
 #[test]
@@ -266,4 +280,41 @@ fn archive_rel_moves_into_backup_and_frees_the_store_path() {
     detach_rel(&sb.agent(), "agents/a.md").unwrap();
     assert!(!sb.agent().join("agents/a.md").exists());
     assert!(has_backup_rel("agents/a.md").unwrap());
+}
+
+#[test]
+fn snapshot_export_import_round_trip() {
+    let sb = Sandbox::new("snapshot");
+    fs::write(sb.store().join(CONFIG), "modelRoles: {default: a/b}\n").unwrap();
+    fs::create_dir_all(sb.store().join("skills")).unwrap();
+    fs::write(sb.store().join("skills/x.md"), "SKILL").unwrap();
+    adopt_rel(&sb.agent(), CONFIG).unwrap();
+    adopt_rel(&sb.agent(), "skills/x.md").unwrap();
+
+    let archive = export_snapshot().unwrap();
+    assert!(archive.is_file());
+
+    fs::write(sb.store().join(CONFIG), "changed").unwrap();
+
+    import_snapshot(&archive).unwrap();
+    assert_eq!(read(&sb.store().join(CONFIG)), "modelRoles: {default: a/b}\n");
+    assert_eq!(read(&sb.store().join("skills/x.md")), "SKILL");
+}
+
+#[test]
+fn snapshot_rejects_symlink_entries() {
+    let sb = Sandbox::new("snapshot-evil");
+    fs::write(sb.store().join(CONFIG), "ok").unwrap();
+    let evil_src = sb.store().join("backup/evil-src");
+    fs::create_dir_all(&evil_src).unwrap();
+    symlink("/etc/passwd", evil_src.join(CONFIG)).unwrap();
+    let evil = sb.store().join("backup/evil.tar.gz");
+    let out = std::process::Command::new("tar")
+        .args(["-czf", &evil.to_string_lossy(), CONFIG])
+        .current_dir(&evil_src)
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    let err = import_snapshot(&evil).unwrap_err();
+    assert!(err.to_string().contains("refusing symlink entry"));
 }

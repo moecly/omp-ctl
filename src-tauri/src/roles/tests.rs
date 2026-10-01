@@ -11,7 +11,9 @@ struct Sandbox {
 
 impl Sandbox {
     fn new(tag: &str) -> Sandbox {
-        let guard = crate::SANDBOX_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let guard = crate::SANDBOX_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let root = std::env::temp_dir().join(format!(
             "omp-ctl-roles-{tag}-{}-{:?}",
             std::process::id(),
@@ -51,7 +53,10 @@ fn set_role_creates_missing_block() {
     let sb = Sandbox::new("set");
     fs::write(sb.root.join(".omp-ctl/config.yml"), SAMPLE).unwrap();
     let roles = set_role("review", "axon/deepseek-v4-flash:off").unwrap();
-    assert_eq!(roles.roles.get("review").map(|s| s.as_str()), Some("axon/deepseek-v4-flash:off"));
+    assert_eq!(
+        roles.roles.get("review").map(|s| s.as_str()),
+        Some("axon/deepseek-v4-flash:off")
+    );
     let out = sb.read_config();
     assert!(out.contains("  review: axon/deepseek-v4-flash:off"));
     assert!(out.starts_with("setupVersion: 2"));
@@ -73,7 +78,9 @@ fn cycle_order_round_trips() {
     fs::write(sb.root.join(".omp-ctl/config.yml"), SAMPLE).unwrap();
     let roles = set_cycle_order(&["default".into(), "smol".into()]).unwrap();
     assert_eq!(roles.cycle_order, vec!["default", "smol"]);
-    assert!(sb.read_config().contains(r#"cycleOrder: ["default","smol"]"#));
+    assert!(sb
+        .read_config()
+        .contains(r#"cycleOrder: ["default","smol"]"#));
     assert!(sb.read_config().starts_with("setupVersion: 2"));
 }
 

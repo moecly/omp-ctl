@@ -10,6 +10,9 @@ use crate::paths::{self, DirInfo};
 use crate::store;
 use crate::yaml::YamlDoc;
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ModelEntry {
@@ -26,6 +29,8 @@ pub struct ModelEntry {
     pub context_window: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_tokens: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub thinking_level: Option<String>,
     /// unmodelled keys carried through untouched
     #[serde(default)]
     pub raw: JValue,
@@ -87,11 +92,7 @@ impl Provider {
                         let input = mm
                             .get("input")
                             .and_then(|v| v.as_array())
-                            .map(|a| {
-                                a.iter()
-                                    .filter_map(|x| x.as_str())
-                                    .any(|s| s == "image")
-                            })
+                            .map(|a| a.iter().filter_map(|x| x.as_str()).any(|s| s == "image"))
                             .unwrap_or(false);
                         ModelEntry {
                             id: mm
@@ -114,6 +115,10 @@ impl Provider {
                             image_input: input,
                             context_window: mm.get("contextWindow").and_then(|v| v.as_u64()),
                             max_tokens: mm.get("maxTokens").and_then(|v| v.as_u64()),
+                            thinking_level: mm
+                                .get("thinkingLevelMap")
+                                .and_then(|v| v.as_object())
+                                .and_then(|o| o.keys().next().cloned()),
                             raw: mv.clone(),
                         }
                     })
@@ -170,6 +175,25 @@ impl Provider {
             em.insert("id".into(), json!(entry.id));
             set_or_remove(&mut em, "name", opt_of(entry.name.as_deref()));
             set_or_remove(&mut em, "api", opt_of(entry.api.as_deref()));
+            set_bool(&mut em, "reasoning", entry.reasoning);
+            em.insert(
+                "input".into(),
+                if entry.image_input {
+                    json!(["text", "image"])
+                } else {
+                    json!(["text"])
+                },
+            );
+            set_num(&mut em, "contextWindow", entry.context_window);
+            set_num(&mut em, "maxTokens", entry.max_tokens);
+            match entry.thinking_level.as_deref().map(str::trim) {
+                Some(level) if !level.is_empty() && level != "off" => {
+                    em.insert("thinkingLevelMap".into(), json!({ level: JValue::Null }));
+                }
+                _ => {
+                    em.remove("thinkingLevelMap");
+                }
+            }
             models.push(JValue::Object(em));
         }
         m.insert("models".into(), JValue::Array(models));
@@ -205,6 +229,17 @@ fn set_bool(m: &mut Map<String, JValue>, key: &str, value: bool) {
         m.insert(key.to_string(), json!(true));
     } else {
         m.remove(key);
+    }
+}
+
+fn set_num(m: &mut Map<String, JValue>, key: &str, value: Option<u64>) {
+    match value {
+        Some(v) => {
+            m.insert(key.to_string(), json!(v));
+        }
+        None => {
+            m.remove(key);
+        }
     }
 }
 
@@ -267,10 +302,12 @@ pub fn validate(p: &Provider) -> Result<()> {
             "apiKey is required unless auth=none",
         ));
     }
-    let any_model_api = p
-        .models
-        .iter()
-        .any(|m| m.api.as_deref().map(|s| !s.trim().is_empty()).unwrap_or(false));
+    let any_model_api = p.models.iter().any(|m| {
+        m.api
+            .as_deref()
+            .map(|s| !s.trim().is_empty())
+            .unwrap_or(false)
+    });
     if p.api.trim().is_empty() && !any_model_api {
         return Err(AppError::validation(
             "api",
@@ -322,10 +359,7 @@ pub fn probe(base_url: &str, api_key: &str, auth_none: bool) -> Result<Vec<Strin
     let status = resp.status();
     let body = resp.text().unwrap_or_default();
     if !status.is_success() {
-        return Err(AppError::probe(
-            Some(status.as_u16()),
-            truncate(&body, 400),
-        ));
+        return Err(AppError::probe(Some(status.as_u16()), truncate(&body, 400)));
     }
 
     let parsed: JValue = serde_json::from_str(&body)
@@ -363,10 +397,110 @@ fn truncate(s: &str, n: usize) -> String {
         format!("{}…", &s[..n])
     }
 }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CatalogModel {
+    pub provider: String,
+    pub id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context_window: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_tokens: Option<u64>,
+    #[serde(default)]
+    pub reasoning: bool,
+    #[serde(default)]
+    pub thinking: Vec<String>,
+    #[serde(default)]
+    pub image_input: bool,
+}
+
+fn parse_catalog(out: &str, provider: Option<&str>) -> Vec<CatalogModel> {
+    let parsed: JValue = serde_json::from_str(out).unwrap_or(JValue::Null);
+    let arr = parsed
+        .get("models")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
+    arr.iter()
+        .filter_map(|m| {
+            let p = m
+                .get("provider")
+                .and_then(|v| v.as_str())
+                .unwrap_or_default();
+            let sel = m
+                .get("selector")
+                .and_then(|v| v.as_str())
+                .unwrap_or_default();
+            if let Some(want) = provider {
+                let head = sel.split('/').next().unwrap_or(p);
+                if p != want && head != want && sel != want {
+                    return None;
+                }
+            }
+            let id = m.get("id").and_then(|v| v.as_str())?.to_string();
+            let input_image = m
+                .get("input")
+                .and_then(|v| v.as_array())
+                .map(|a| a.iter().filter_map(|x| x.as_str()).any(|s| s == "image"))
+                .unwrap_or(false);
+            Some(CatalogModel {
+                provider: p.to_string(),
+                id,
+                name: m
+                    .get("name")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string()),
+                context_window: m.get("contextWindow").and_then(|v| v.as_u64()),
+                max_tokens: m.get("maxTokens").and_then(|v| v.as_u64()),
+                reasoning: m
+                    .get("reasoning")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false),
+                thinking: m
+                    .get("thinking")
+                    .and_then(|v| v.as_array())
+                    .map(|a| {
+                        a.iter()
+                            .filter_map(|x| x.as_str().map(|s| s.to_string()))
+                            .collect()
+                    })
+                    .unwrap_or_default(),
+                image_input: input_image,
+            })
+        })
+        .collect()
+}
+
+pub fn catalog(provider: &str) -> Result<Vec<CatalogModel>> {
+    let id = provider.trim();
+    if id.is_empty() {
+        return Err(AppError::validation("provider", "provider id is required"));
+    }
+    if let Ok(out) = crate::proc::omp(&["models", id, "--json"]) {
+        let mut items = parse_catalog(&out, Some(id));
+        if !items.is_empty() {
+            for m in &mut items {
+                if m.provider.is_empty() {
+                    m.provider = id.to_string();
+                }
+            }
+            return Ok(items);
+        }
+    }
+    match crate::proc::omp(&["models", "--json"]) {
+        Ok(out) => Ok(parse_catalog(&out, Some(id))),
+        Err(e) => Err(e),
+    }
+}
 
 pub fn set_default_model(selector: &str) -> Result<()> {
     if selector.trim().is_empty() {
-        return Err(AppError::validation("selector", "model selector is required"));
+        return Err(AppError::validation(
+            "selector",
+            "model selector is required",
+        ));
     }
     let agent = paths::agent_dir()?;
     store::adopt(&agent, store::CONFIG)?;
@@ -388,7 +522,9 @@ pub fn rewrite_default_roles(old_id: &str, new_id: &str) -> Result<Vec<String>> 
     let prefix = format!("{old_id}/");
     let mut changed = Vec::new();
     for (role, value) in roles.iter_mut() {
-        let Some(current) = value.as_str() else { continue };
+        let Some(current) = value.as_str() else {
+            continue;
+        };
         if !current.starts_with(&prefix) {
             continue;
         }
@@ -409,5 +545,3 @@ pub fn rewrite_default_roles(old_id: &str, new_id: &str) -> Result<Vec<String>> 
 pub fn dir_info() -> Result<DirInfo> {
     paths::dir_info()
 }
-
-

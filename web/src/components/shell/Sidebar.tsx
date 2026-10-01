@@ -8,6 +8,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Plug,
+  Save,
   Server,
   Settings,
   SlidersHorizontal,
@@ -49,6 +50,7 @@ const GROUP_RESOURCES: NavItem[] = [
 const GROUP_SYSTEM: NavItem[] = [
   { page: "memory", key: "memory", icon: Brain },
   { page: "settings", key: "settings", icon: Settings },
+  { page: "backup", key: "backup", icon: Save },
 ];
 
 export const NAV: NavItem[] = [...GROUP_CONFIG, ...GROUP_RESOURCES, ...GROUP_SYSTEM];

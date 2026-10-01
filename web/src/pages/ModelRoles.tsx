@@ -19,6 +19,18 @@ import {
 } from "../components/ui";
 import { PageError, PageSkeleton } from "../components/ui/PageState";
 import { PageContainer } from "../components/shell/PageContainer";
+const KNOWN_ROLES: [string, string][] = [
+  ["default", "Normal interactive work and the main-session default"],
+  ["smol", "Fast, inexpensive utility work and fast handoff paths"],
+  ["slow", "Thorough reasoning where extra latency is acceptable"],
+  ["plan", "Plan-mode architecture and review"],
+  ["vision", "Image inspection when a vision-capable model is needed"],
+  ["designer", "The designer subagent"],
+  ["commit", "Commit-message generation"],
+  ["tiny", "Very small online classifications and titles"],
+  ["task", "General subagent work"],
+  ["advisor", "Independent reasoning model for Advisor"],
+];
 
 export function ModelRoles() {
   const { t } = useApp();
@@ -76,7 +88,18 @@ export function ModelRoles() {
   };
 
   const entries = Object.entries(roles.data?.roles ?? {});
-
+  const missing = KNOWN_ROLES.filter(([role]) => !(role in (roles.data?.roles ?? {})));
+  const quickAdd = async (role: string) => {
+    const selector = selectors[0] ?? Object.values(roles.data?.roles ?? {})[0] ?? "";
+    if (!selector) return;
+    try {
+      await ipc.setModelRole(role, selector);
+      toast.success(t.common.save, role);
+      roles.reload();
+    } catch (e) {
+      toast.error(t.common.save, errorText(e));
+    }
+  };
   return (
     <PageContainer
       title={t.roles.title}
@@ -115,6 +138,7 @@ export function ModelRoles() {
             <div key={role} className="group flex h-[44px] items-center gap-3 px-1 py-2.5 hover:bg-[var(--color-hover)]">
               <div className="flex min-w-0 flex-1 items-center gap-2">
                 <span className="text-[13px] font-medium text-[var(--color-fg)]">{role}</span>
+                {role === "default" && <Badge tone="accent">{t.common.default}</Badge>}
                 {roles.data?.cycleOrder.includes(role) && <Badge tone="accent">cycle</Badge>}
               </div>
               <Select
@@ -138,6 +162,19 @@ export function ModelRoles() {
               </IconButton>
             </div>
           ))}
+        </div>
+      )}
+      {missing.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <div className="text-[11px] uppercase tracking-wide text-[var(--color-fg-subtle)]">{t.roles.quickAdd}</div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {missing.map(([role, desc]) => (
+              <Button key={role} size="sm" title={desc} onClick={() => quickAdd(role)}>
+                <Plus size={14} />
+                {role}
+              </Button>
+            ))}
+          </div>
         </div>
       )}
 

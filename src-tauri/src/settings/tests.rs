@@ -39,7 +39,11 @@ fn pipe_list_becomes_options() {
     let (_, options) = map.get("symbolPreset").unwrap();
     assert_eq!(
         options.as_ref().unwrap(),
-        &vec!["unicode".to_string(), "nerd".to_string(), "ascii".to_string()]
+        &vec![
+            "unicode".to_string(),
+            "nerd".to_string(),
+            "ascii".to_string()
+        ]
     );
 }
 

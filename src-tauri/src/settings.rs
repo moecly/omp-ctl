@@ -4,10 +4,10 @@ use std::path::Path;
 use serde::Serialize;
 use serde_json::Value as JValue;
 
+use crate::config_edit;
 use crate::error::{AppError, Result};
 use crate::proc;
 use crate::store;
-use crate::config_edit;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -31,7 +31,9 @@ pub struct SettingsCatalog {
 const KNOWN_TYPES: [&str; 6] = ["string", "number", "boolean", "array", "record", "enum"];
 
 /// Parse `omp config list` human output into (tabs, key -> (tab, options)).
-pub fn parse_human_list(text: &str) -> (Vec<String>, BTreeMap<String, (String, Option<Vec<String>>)>) {
+pub fn parse_human_list(
+    text: &str,
+) -> (Vec<String>, BTreeMap<String, (String, Option<Vec<String>>)>) {
     let mut tabs: Vec<String> = Vec::new();
     let mut map: BTreeMap<String, (String, Option<Vec<String>>)> = BTreeMap::new();
     let mut tab = String::new();

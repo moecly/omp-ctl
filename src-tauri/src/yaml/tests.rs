@@ -14,7 +14,9 @@ struct Sandbox {
 
 impl Sandbox {
     fn new(tag: &str) -> Sandbox {
-        let guard = crate::SANDBOX_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let guard = crate::SANDBOX_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let root = std::env::temp_dir().join(format!(
             "omp-ctl-yaml-{tag}-{}-{}",
             std::process::id(),
@@ -25,7 +27,10 @@ impl Sandbox {
         fs::create_dir_all(root.join(".omp/agent")).unwrap();
         std::env::set_var("HOME", &root);
         std::env::set_var("PI_CODING_AGENT_DIR", root.join(".omp/agent"));
-        Sandbox { root, _guard: guard }
+        Sandbox {
+            root,
+            _guard: guard,
+        }
     }
 
     fn file(&self) -> PathBuf {
@@ -73,7 +78,12 @@ fn preserves_comments_and_unmodelled_keys() {
     assert_eq!(doc.ids(), vec!["axon".to_string()]);
 
     let axon = doc.get("axon").unwrap();
-    assert_eq!(axon["baseUrl"], json!("http://localhost:8090"), "raw doc:\n{}", doc_text_for_debug(&sb));
+    assert_eq!(
+        axon["baseUrl"],
+        json!("http://localhost:8090"),
+        "raw doc:\n{}",
+        doc_text_for_debug(&sb)
+    );
     assert_eq!(axon["models"][0]["reasoning"], json!(true));
     assert_eq!(axon["models"][0]["contextWindow"], json!(128000));
     assert_eq!(axon["models"][0]["thinkingLevelMap"]["high"], json!(null));
@@ -85,12 +95,21 @@ fn preserves_comments_and_unmodelled_keys() {
     doc.save(&sb.file()).unwrap();
 
     let out = read(&sb.file());
-    assert!(out.contains("# 顶层注释，必须保留"), "top comment lost:\n{out}");
-    assert!(out.contains("  axon: # 行内注释，必须保留"), "inline comment lost:\n{out}");
+    assert!(
+        out.contains("# 顶层注释，必须保留"),
+        "top comment lost:\n{out}"
+    );
+    assert!(
+        out.contains("  axon: # 行内注释，必须保留"),
+        "inline comment lost:\n{out}"
+    );
     assert!(out.contains("https://api.example.com"));
     assert!(out.contains("reasoning: true"), "reasoning lost:\n{out}");
     assert!(out.contains("128000"), "contextWindow lost:\n{out}");
-    assert!(out.contains("thinkingLevelMap"), "thinkingLevelMap lost:\n{out}");
+    assert!(
+        out.contains("thinkingLevelMap"),
+        "thinkingLevelMap lost:\n{out}"
+    );
 
     let reparsed = YamlDoc::load(&sb.file()).unwrap().get("axon").unwrap();
     assert_eq!(reparsed["baseUrl"], json!("https://api.example.com"));
@@ -119,7 +138,10 @@ fn adds_second_provider_without_disturbing_first() {
     assert!(out.contains("# 顶层注释，必须保留"));
     let doc = YamlDoc::load(&sb.file()).unwrap();
     assert_eq!(doc.ids(), vec!["axon".to_string(), "omptest".to_string()]);
-    assert_eq!(doc.get("omptest").unwrap()["models"][0]["id"], json!("deepseek-v4-flash"));
+    assert_eq!(
+        doc.get("omptest").unwrap()["models"][0]["id"],
+        json!("deepseek-v4-flash")
+    );
     assert_eq!(doc.get("axon").unwrap()["apiKey"], json!("secret"));
 }
 
@@ -163,7 +185,11 @@ fn rejects_invalid_yaml_without_writing() {
         Ok(_) => panic!("expected yaml error, got Ok"),
     }
 
-    assert_eq!(fs::read(sb.file()).unwrap(), before, "file must be untouched");
+    assert_eq!(
+        fs::read(sb.file()).unwrap(),
+        before,
+        "file must be untouched"
+    );
 }
 
 #[test]
@@ -180,7 +206,10 @@ fn save_creates_bak() {
 
     assert_eq!(fs::read(&backup).unwrap(), before);
     let name = backup.file_name().unwrap().to_string_lossy().into_owned();
-    assert!(name.starts_with("models.yml.bak."), "unexpected backup name {name}");
+    assert!(
+        name.starts_with("models.yml.bak."),
+        "unexpected backup name {name}"
+    );
     assert!(read(&sb.file()).contains("rotated"));
 }
 

@@ -9,6 +9,7 @@ import { Mcp } from "./pages/Mcp";
 import { Tools } from "./pages/Tools";
 import { Memory } from "./pages/Memory";
 import { Settings } from "./pages/Settings";
+import { Backup } from "./pages/Backup";
 
 export function App() {
   return (
@@ -37,6 +38,8 @@ export function App() {
             return <Memory />;
           case "settings":
             return <Settings />;
+          case "backup":
+            return <Backup />;
           case "overview":
           default:
             return <Overview />;

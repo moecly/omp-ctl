@@ -145,8 +145,10 @@ pub fn write_atomic(path: &Path, bytes: &[u8]) -> Result<()> {
     let tmp = dir.join(format!(".tmp-{}-{}", now_ts(), std::process::id()));
     {
         let mut f = fs::File::create(&tmp).map_err(|e| AppError::fs(&tmp, e.to_string()))?;
-        f.write_all(bytes).map_err(|e| AppError::fs(&tmp, e.to_string()))?;
-        f.sync_all().map_err(|e| AppError::fs(&tmp, e.to_string()))?;
+        f.write_all(bytes)
+            .map_err(|e| AppError::fs(&tmp, e.to_string()))?;
+        f.sync_all()
+            .map_err(|e| AppError::fs(&tmp, e.to_string()))?;
     }
     fs::rename(&tmp, path).map_err(|e| AppError::fs(path, e.to_string()))?;
     Ok(())
@@ -250,9 +252,11 @@ pub fn adopt(agent: &Path, name: &str) -> Result<LinkState> {
 pub fn detach_rel(agent_root: &Path, rel: &str) -> Result<()> {
     let state = link_state_rel(agent_root, rel)?;
     if state.kind == LinkKind::Managed {
-        let meta = fs::symlink_metadata(&state.path).map_err(|e| AppError::fs(&state.path, e.to_string()))?;
+        let meta = fs::symlink_metadata(&state.path)
+            .map_err(|e| AppError::fs(&state.path, e.to_string()))?;
         if meta.is_dir() {
-            fs::remove_dir_all(&state.path).map_err(|e| AppError::fs(&state.path, e.to_string()))?;
+            fs::remove_dir_all(&state.path)
+                .map_err(|e| AppError::fs(&state.path, e.to_string()))?;
         } else {
             fs::remove_file(&state.path).map_err(|e| AppError::fs(&state.path, e.to_string()))?;
         }
@@ -368,6 +372,172 @@ pub fn backup_file(path: &Path) -> Result<PathBuf> {
     Ok(candidate)
 }
 
+fn snapshot_entries() -> Vec<String> {
+    let mut out: Vec<String> = vec![
+        CONFIG.to_string(),
+        MODELS.to_string(),
+        crate::mcp::MCP_FILE.to_string(),
+        META.to_string(),
+    ];
+    for name in MANAGED {
+        out.push(name.to_string());
+    }
+    for spec in crate::resources::RESOURCES {
+        out.push(spec.store_sub.to_string());
+    }
+    out
+}
+
+fn run_tar(dir: &Path, args: &[String]) -> Result<()> {
+    let out = std::process::Command::new("tar")
+        .args(args)
+        .current_dir(dir)
+        .output()
+        .map_err(|e| AppError::internal(format!("tar: {e}")))?;
+    if !out.status.success() {
+        return Err(AppError::internal(format!(
+            "tar: {}",
+            String::from_utf8_lossy(&out.stderr).trim()
+        )));
+    }
+    Ok(())
+}
+
+pub fn export_snapshot() -> Result<PathBuf> {
+    let store = ensure_store()?;
+    let dest = store
+        .join(BACKUP_DIR)
+        .join(format!("migrate-{}.tar.gz", now_ts()));
+    let mut present: Vec<String> = snapshot_entries()
+        .into_iter()
+        .filter(|rel| store.join(rel).exists())
+        .collect();
+    if present.is_empty() {
+        return Err(AppError::fs(&store, "nothing to back up"));
+    }
+    present.sort();
+    let mut args = vec![
+        "-czf".to_string(),
+        dest.to_string_lossy().into_owned(),
+    ];
+    args.extend(present);
+    run_tar(&store, &args)?;
+    Ok(dest)
+}
+
+pub fn import_snapshot(path: &Path) -> Result<()> {
+    if !path.is_file() {
+        return Err(AppError::fs(path, "snapshot not found"));
+    }
+    let store = ensure_store()?;
+    let tmp = store
+        .join(BACKUP_DIR)
+        .join(format!(".import-{}-{}", now_ts(), std::process::id()));
+    if tmp.exists() {
+        fs::remove_dir_all(&tmp).map_err(|e| AppError::fs(&tmp, e.to_string()))?;
+    }
+    fs::create_dir_all(&tmp).map_err(|e| AppError::fs(&tmp, e.to_string()))?;
+    let cleanup = |r: Result<()>| {
+        if r.is_err() {
+            fs::remove_dir_all(&tmp).ok();
+        }
+        r
+    };
+    let extracted = (|| {
+        run_tar(
+            &tmp,
+            &["-xzf".to_string(), path.to_string_lossy().into_owned()],
+        )?;
+        let mut staged: Vec<String> = Vec::new();
+        for rel in snapshot_entries() {
+            let src = tmp.join(&rel);
+            if !src.exists() {
+                continue;
+            }
+            if fs::symlink_metadata(&src)
+                .map(|m| m.file_type().is_symlink())
+                .unwrap_or(false)
+            {
+                return Err(AppError::validation(
+                    "snapshot",
+                    format!("refusing symlink entry `{rel}`"),
+                ));
+            }
+            if src.is_dir()
+                && !crate::resources::RESOURCES
+                    .iter()
+                    .any(|s| s.store_sub == rel)
+            {
+                continue;
+            }
+            staged.push(rel);
+        }
+        if staged.is_empty() {
+            return Err(AppError::validation(
+                "snapshot",
+                "snapshot contains no known entries",
+            ));
+        }
+        for rel in &staged {
+            let src = tmp.join(rel);
+            let dst = store.join(rel);
+            if src.is_dir() {
+                if dst.exists() {
+                    let bak = backup_path(rel)?;
+                    fs::rename(&dst, &bak).map_err(|e| AppError::fs(&dst, e.to_string()))?;
+                }
+                copy_dir_all(&src, &dst)?;
+            } else {
+                if dst.is_file() {
+                    backup_file(&dst)?;
+                }
+                let bytes = fs::read(&src).map_err(|e| AppError::fs(&src, e.to_string()))?;
+                write_atomic(&dst, &bytes)?;
+            }
+        }
+        let agent = paths::agent_dir()?;
+        for rel in &staged {
+            if rel == META {
+                continue;
+            }
+            let agent_path = agent.join(rel);
+            let target = store.join(rel);
+            if !target.exists() {
+                continue;
+            }
+            match fs::symlink_metadata(&agent_path) {
+                Ok(m) if m.file_type().is_symlink() => {
+                    let cur =
+                        fs::read_link(&agent_path).map_err(|e| AppError::fs(&agent_path, e.to_string()))?;
+                    if target_in_store(&cur, &store) {
+                        continue;
+                    }
+                    fs::remove_file(&agent_path).map_err(|e| AppError::fs(&agent_path, e.to_string()))?;
+                }
+                Ok(m) if m.is_dir() => {
+                    let bak = backup_path(rel)?;
+                    fs::rename(&agent_path, &bak).map_err(|e| AppError::fs(&agent_path, e.to_string()))?;
+                }
+                Ok(_) => {
+                    backup_file(&agent_path)?;
+                    fs::remove_file(&agent_path).map_err(|e| AppError::fs(&agent_path, e.to_string()))?;
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                Err(e) => return Err(AppError::fs(&agent_path, e.to_string())),
+            }
+            if let Some(parent) = agent_path.parent() {
+                fs::create_dir_all(parent).map_err(|e| AppError::fs(parent, e.to_string()))?;
+            }
+            if fs::symlink_metadata(&agent_path).is_err() {
+                symlink(target, &agent_path).map_err(|e| AppError::fs(&agent_path, e.to_string()))?;
+            }
+        }
+        Ok(())
+    })();
+    let r = cleanup(extracted);
+    fs::remove_dir_all(&tmp).ok();
+    r
+}
+
 #[cfg(test)]
 mod tests;
-
