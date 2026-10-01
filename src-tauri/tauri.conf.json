@@ -5,7 +5,9 @@
   "identifier": "dev.moecly.omp-ctl",
   "build": {
     "frontendDist": "../dist",
-    "devUrl": "http://localhost:1420"
+    "devUrl": "http://127.0.0.1:1420",
+    "beforeDevCommand": "cd ../web && bun run dev",
+    "beforeBuildCommand": "cd ../web && bun run build"
   },
   "app": {
     "withGlobalTauri": true,

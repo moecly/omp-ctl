@@ -62,8 +62,9 @@ fn target_in_store(target: &Path, store: &Path) -> bool {
     abs == store.join(abs.file_name().unwrap_or_default()) || abs.starts_with(store)
 }
 
-pub fn link_state(agent: &Path, name: &str) -> Result<LinkState> {
-    let path = agent.join(name);
+/// Link state for a path described relative to both the agent and store roots.
+pub fn link_state_rel(agent_root: &Path, rel: &str) -> Result<LinkState> {
+    let path = agent_root.join(rel);
     let store = paths::store_dir()?;
 
     let meta = match fs::symlink_metadata(&path) {
@@ -101,13 +102,21 @@ pub fn link_state(agent: &Path, name: &str) -> Result<LinkState> {
     })
 }
 
-fn write_link(agent: &Path, name: &str) -> Result<()> {
+pub fn link_state(agent: &Path, name: &str) -> Result<LinkState> {
+    link_state_rel(agent, name)
+}
+
+fn write_link_rel(agent_root: &Path, rel: &str) -> Result<()> {
     let store = ensure_store()?;
-    let dst = agent.join(name);
+    let dst = agent_root.join(rel);
     if let Some(parent) = dst.parent() {
         fs::create_dir_all(parent).map_err(|e| AppError::fs(parent, e.to_string()))?;
     }
-    symlink(store.join(name), &dst).map_err(|e| AppError::fs(&dst, e.to_string()))?;
+    let target = store.join(rel);
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent).map_err(|e| AppError::fs(parent, e.to_string()))?;
+    }
+    symlink(target, &dst).map_err(|e| AppError::fs(&dst, e.to_string()))?;
     Ok(())
 }
 
@@ -147,46 +156,80 @@ pub fn backup_path(name: &str) -> Result<PathBuf> {
     ensure_store()?;
     let store = paths::store_dir()?;
     let ts = now_ts();
-    let mut candidate = store.join(BACKUP_DIR).join(format!("{name}.{ts}"));
+    let dir = store.join(BACKUP_DIR).join(name);
+    if let Some(parent) = dir.parent() {
+        fs::create_dir_all(parent).map_err(|e| AppError::fs(parent, e.to_string()))?;
+    }
+    let mut candidate = PathBuf::from(format!("{}.{ts}", dir.display()));
     let mut n = 1;
     while candidate.exists() {
-        candidate = store.join(BACKUP_DIR).join(format!("{name}.{ts}.{n}"));
+        candidate = PathBuf::from(format!("{}.{ts}.{n}", dir.display()));
         n += 1;
     }
     Ok(candidate)
 }
 
-/// Take over `agent/name`.
+/// Copy a directory tree, copying files and rebuilding symlinks verbatim.
+fn copy_dir_all(src: &Path, dst: &Path) -> Result<()> {
+    fs::create_dir_all(dst).map_err(|e| AppError::fs(dst, e.to_string()))?;
+    let entries = fs::read_dir(src).map_err(|e| AppError::fs(src, e.to_string()))?;
+    for entry in entries {
+        let entry = entry.map_err(|e| AppError::fs(src, e.to_string()))?;
+        let from = entry.path();
+        let to = dst.join(entry.file_name());
+        let meta = fs::symlink_metadata(&from).map_err(|e| AppError::fs(&from, e.to_string()))?;
+        if meta.file_type().is_symlink() {
+            let target = fs::read_link(&from).map_err(|e| AppError::fs(&from, e.to_string()))?;
+            symlink(target, &to).map_err(|e| AppError::fs(&to, e.to_string()))?;
+        } else if meta.is_dir() {
+            copy_dir_all(&from, &to)?;
+        } else {
+            fs::copy(&from, &to).map_err(|e| AppError::fs(&from, e.to_string()))?;
+        }
+    }
+    Ok(())
+}
+
+/// Take over the entity at `agent_root/rel`.
 ///
 /// Absent    -> create the link.
 /// Managed   -> no-op.
-/// Unmanaged -> read content through any existing file/symlink, copy it into the store,
+/// Unmanaged -> copy the existing entity (file or directory) into the store,
 ///              move the original entity into `store/backup/`, then create the link.
-pub fn adopt(agent: &Path, name: &str) -> Result<LinkState> {
+pub fn adopt_rel(agent_root: &Path, rel: &str) -> Result<LinkState> {
     ensure_store()?;
-    let state = link_state(agent, name)?;
+    let state = link_state_rel(agent_root, rel)?;
     match state.kind {
         LinkKind::Managed => Ok(state),
         LinkKind::Absent => {
-            write_link(agent, name)?;
-            link_state(agent, name)
+            write_link_rel(agent_root, rel)?;
+            link_state_rel(agent_root, rel)
         }
         LinkKind::Unmanaged => {
-            let src = agent.join(name);
-            // reading follows symlinks; an unreadable/dangling entry aborts before any mutation
-            let bytes = fs::read(&src).map_err(|e| AppError::fs(&src, e.to_string()))?;
-
+            let src = agent_root.join(rel);
             let store = paths::store_dir()?;
-            write_atomic(&store.join(name), &bytes)?;
+            let dst = store.join(rel);
+            if let Some(parent) = dst.parent() {
+                fs::create_dir_all(parent).map_err(|e| AppError::fs(parent, e.to_string()))?;
+            }
 
-            let backup = backup_path(name)?;
+            let meta = fs::metadata(&src).map_err(|e| AppError::fs(&src, e.to_string()))?;
+            if meta.is_dir() {
+                copy_dir_all(&src, &dst)?;
+            } else {
+                // reading follows symlinks; an unreadable/dangling entry aborts before any mutation
+                let bytes = fs::read(&src).map_err(|e| AppError::fs(&src, e.to_string()))?;
+                write_atomic(&dst, &bytes)?;
+            }
+
+            let backup = backup_path(rel)?;
             fs::rename(&src, &backup).map_err(|e| AppError::fs(&src, e.to_string()))?;
 
-            write_link(agent, name)?;
+            write_link_rel(agent_root, rel)?;
 
             let mut meta = read_meta_raw()?;
             meta.insert(
-                name.to_string(),
+                rel.to_string(),
                 LinkMeta {
                     backup: backup.to_string_lossy().into_owned(),
                     adopted_at: now_ts(),
@@ -194,45 +237,66 @@ pub fn adopt(agent: &Path, name: &str) -> Result<LinkState> {
             );
             write_meta(&meta)?;
 
-            link_state(agent, name)
+            link_state_rel(agent_root, rel)
         }
     }
 }
 
+pub fn adopt(agent: &Path, name: &str) -> Result<LinkState> {
+    adopt_rel(agent, name)
+}
+
 /// Remove the link only when it points into the store; never touch foreign files.
-pub fn detach(agent: &Path, name: &str) -> Result<()> {
-    let state = link_state(agent, name)?;
+pub fn detach_rel(agent_root: &Path, rel: &str) -> Result<()> {
+    let state = link_state_rel(agent_root, rel)?;
     if state.kind == LinkKind::Managed {
-        fs::remove_file(&state.path).map_err(|e| AppError::fs(&state.path, e.to_string()))?;
+        let meta = fs::symlink_metadata(&state.path).map_err(|e| AppError::fs(&state.path, e.to_string()))?;
+        if meta.is_dir() {
+            fs::remove_dir_all(&state.path).map_err(|e| AppError::fs(&state.path, e.to_string()))?;
+        } else {
+            fs::remove_file(&state.path).map_err(|e| AppError::fs(&state.path, e.to_string()))?;
+        }
     }
     Ok(())
 }
 
-pub fn has_backup(name: &str) -> Result<bool> {
+pub fn detach(agent: &Path, name: &str) -> Result<()> {
+    detach_rel(agent, name)
+}
+
+pub fn has_backup_rel(rel: &str) -> Result<bool> {
     let meta = read_meta_raw()?;
-    match meta.get(name) {
+    match meta.get(rel) {
         Some(entry) => Ok(Path::new(&entry.backup).exists()),
         None => Ok(false),
     }
 }
 
-/// Move the pre-adoption entity back to `agent/name`. The store copy is preserved.
-pub fn restore_backup(agent: &Path, name: &str) -> Result<()> {
+pub fn has_backup(name: &str) -> Result<bool> {
+    has_backup_rel(name)
+}
+
+/// Move the pre-adoption entity back to `agent_root/rel`. The store copy is preserved.
+pub fn restore_backup_rel(agent_root: &Path, rel: &str) -> Result<()> {
     let mut meta = read_meta_raw()?;
     let entry = meta
-        .get(name)
+        .get(rel)
         .cloned()
-        .ok_or_else(|| AppError::validation(name, "no adoption backup recorded"))?;
+        .ok_or_else(|| AppError::validation(rel, "no adoption backup recorded"))?;
 
     let backup = PathBuf::from(&entry.backup);
     if !backup.exists() {
         return Err(AppError::fs(&backup, "recorded backup is missing"));
     }
 
-    let dst = agent.join(name);
+    let dst = agent_root.join(rel);
     match fs::symlink_metadata(&dst) {
-        Ok(_) => {
-            fs::remove_file(&dst).map_err(|e| AppError::fs(&dst, e.to_string()))?;
+        Ok(m) => {
+            if m.is_dir() {
+                fs::remove_dir_all(&dst).map_err(|e| AppError::fs(&dst, e.to_string()))?;
+            } else {
+                fs::remove_file(&dst).map_err(|e| AppError::fs(&dst, e.to_string()))?;
+            }
         }
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
         Err(e) => return Err(AppError::fs(&dst, e.to_string())),
@@ -240,9 +304,38 @@ pub fn restore_backup(agent: &Path, name: &str) -> Result<()> {
 
     fs::rename(&backup, &dst).map_err(|e| AppError::fs(&dst, e.to_string()))?;
 
-    meta.remove(name);
+    meta.remove(rel);
     write_meta(&meta)?;
     Ok(())
+}
+
+pub fn restore_backup(agent: &Path, name: &str) -> Result<()> {
+    restore_backup_rel(agent, name)
+}
+
+/// Move the store entity at `rel` into `backup/` (recording the move) and return the backup path.
+/// The agent-side link, if any, is left for the caller to `detach_rel`.
+pub fn archive_rel(rel: &str) -> Result<PathBuf> {
+    ensure_store()?;
+    let store = paths::store_dir()?;
+    let src = store.join(rel);
+    if !src.exists() {
+        return Err(AppError::fs(&src, "not found"));
+    }
+
+    let backup = backup_path(rel)?;
+    fs::rename(&src, &backup).map_err(|e| AppError::fs(&src, e.to_string()))?;
+
+    let mut meta = read_meta_raw()?;
+    meta.insert(
+        rel.to_string(),
+        LinkMeta {
+            backup: backup.to_string_lossy().into_owned(),
+            adopted_at: now_ts(),
+        },
+    );
+    write_meta(&meta)?;
+    Ok(backup)
 }
 
 pub fn write_content(name: &str, text: &str) -> Result<PathBuf> {

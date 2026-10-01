@@ -195,3 +195,75 @@ fn agent_dir_prefers_env_override_in_sandbox() {
     let sb = Sandbox::new("agent-dir");
     assert_eq!(crate::paths::agent_dir().unwrap(), sb.agent());
 }
+
+#[test]
+fn adopt_rel_takes_over_a_directory() {
+    let sb = Sandbox::new("adopt-dir");
+    let dir = sb.agent().join("skills/foo");
+    fs::create_dir_all(&dir).unwrap();
+    fs::write(dir.join("SKILL.md"), "---\nname: foo\n---\n").unwrap();
+    fs::write(dir.join("extra.txt"), "EXTRA").unwrap();
+
+    let state = adopt_rel(&sb.agent(), "skills/foo").unwrap();
+    assert_eq!(state.kind, LinkKind::Managed);
+
+    let stored = sb.store().join("skills/foo");
+    assert_eq!(read(&stored.join("SKILL.md")), "---\nname: foo\n---\n");
+    assert_eq!(read(&stored.join("extra.txt")), "EXTRA");
+
+    let link = fs::read_link(sb.agent().join("skills/foo")).unwrap();
+    assert_eq!(link, stored);
+
+    let backup = sb.store().join("backup/skills");
+    let entries: Vec<std::path::PathBuf> = fs::read_dir(&backup)
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .collect();
+    assert_eq!(entries.len(), 1, "expected one backup entry: {entries:?}");
+    assert_eq!(read(&entries[0].join("SKILL.md")), "---\nname: foo\n---\n");
+    assert!(entries[0].to_string_lossy().contains("/skills/foo."));
+
+    assert_eq!(
+        link_state_rel(&sb.agent(), "skills/foo").unwrap().kind,
+        LinkKind::Managed
+    );
+
+    detach_rel(&sb.agent(), "skills/foo").unwrap();
+    assert!(sb.store().join("skills/foo/SKILL.md").exists(), "store dir survives detach");
+}
+
+#[test]
+fn adopt_rel_nested_file() {
+    let sb = Sandbox::new("adopt-nested");
+    let dir = sb.agent().join("hooks/pre");
+    fs::create_dir_all(&dir).unwrap();
+    fs::write(dir.join("x.ts"), "export default 1").unwrap();
+
+    let state = adopt_rel(&sb.agent(), "hooks/pre/x.ts").unwrap();
+    assert_eq!(state.kind, LinkKind::Managed);
+    assert_eq!(read(&sb.store().join("hooks/pre/x.ts")), "export default 1");
+    assert_eq!(
+        fs::read_link(sb.agent().join("hooks/pre/x.ts")).unwrap(),
+        sb.store().join("hooks/pre/x.ts")
+    );
+}
+
+#[test]
+fn archive_rel_moves_into_backup_and_frees_the_store_path() {
+    let sb = Sandbox::new("archive");
+    let dir = sb.agent().join("agents");
+    fs::create_dir_all(&dir).unwrap();
+    fs::write(dir.join("a.md"), "AGENT").unwrap();
+    adopt_rel(&sb.agent(), "agents/a.md").unwrap();
+    assert!(sb.store().join("agents/a.md").exists());
+
+    let backup = archive_rel("agents/a.md").unwrap();
+    assert!(backup.exists());
+    assert_eq!(read(&backup), "AGENT");
+    assert!(!sb.store().join("agents/a.md").exists());
+
+    detach_rel(&sb.agent(), "agents/a.md").unwrap();
+    assert!(!sb.agent().join("agents/a.md").exists());
+    assert!(has_backup_rel("agents/a.md").unwrap());
+}

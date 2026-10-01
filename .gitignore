@@ -7,5 +7,7 @@ src-tauri/target/
 .codegraph/
 
 node_modules/
+dist/
+web/node_modules/
 
 *.bak.*

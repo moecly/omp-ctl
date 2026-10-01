@@ -45,3 +45,52 @@ fn prompt_catalog_covers_all_four_managed_files() {
         assert!(s.agent_path.display().to_string().contains(&s.name));
     }
 }
+
+#[test]
+fn resources_enumerate_without_error() {
+    if !real_agent_dir_available() {
+        eprintln!("skipping: no agent directory resolvable");
+        return;
+    }
+    for id in ["skills", "agents", "hooks_pre", "hooks_post", "extensions", "tools"] {
+        let entries = harness::resources(id.to_string()).unwrap_or_else(|e| panic!("{id}: {e}"));
+        for e in &entries {
+            assert_eq!(e.resource, id);
+            assert!(!e.name.is_empty());
+        }
+    }
+}
+
+#[test]
+fn overview_reports_a_version_or_none() {
+    if !real_agent_dir_available() {
+        eprintln!("skipping: no agent directory resolvable");
+        return;
+    }
+    let ov = harness::overview().unwrap();
+    assert!(ov.info.store.ends_with(".omp-ctl"));
+    assert_eq!(ov.prompts.len(), 4);
+    assert!(!ov.links.is_empty());
+    let _ = ov.omp_version;
+}
+
+#[test]
+fn settings_catalog_has_all_tabs() {
+    if !real_agent_dir_available() {
+        eprintln!("skipping: no agent directory resolvable");
+        return;
+    }
+    let catalog = harness::settings().unwrap();
+    for expected in ["appearance", "tools", "memory"] {
+        assert!(
+            catalog.tabs.iter().any(|t| t == expected),
+            "missing tab `{expected}` in {:?}",
+            catalog.tabs
+        );
+    }
+    assert!(!catalog.entries.is_empty());
+    for entry in catalog.entries.iter().take(20) {
+        assert!(!entry.key.is_empty());
+        assert!(!entry.ty.is_empty());
+    }
+}

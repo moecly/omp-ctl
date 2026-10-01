@@ -33,13 +33,25 @@ test:
 fmt-rust:
     cargo fmt
 
-# Serve the static frontend on the port Tauri expects.
-serve:
-    python3 -m http.server 1420 --bind 127.0.0.1 --directory dist
+# Install frontend dependencies.
+web-install:
+    cd web && bun install
 
-# Launch the GUI in dev mode (run `just serve` in another terminal first).
+# Type-check the frontend.
+web-check:
+    bun --cwd web run check
+
+# Build the frontend into dist/.
+web-build:
+    bun --cwd web run build
+
+# Serve the frontend on the port Tauri expects.
+serve:
+    bun --cwd web run dev
+
+# Wayland 下 WebKit 渲染错乱，需禁用 DMABUF renderer 并走 X11。
 dev:
-    cargo tauri dev
+    WEBKIT_DISABLE_DMABUF_RENDERER=1 GDK_BACKEND=x11 cargo tauri dev
 
 # Build a release bundle.
 build:

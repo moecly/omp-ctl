@@ -3,9 +3,15 @@ pub(crate) static SANDBOX_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(())
 
 pub mod error;
 mod config_edit;
+mod mcp;
 mod models;
+mod overview;
 mod paths;
+mod proc;
 mod prompts;
+mod resources;
+mod roles;
+mod settings;
 mod store;
 mod yaml;
 
@@ -17,9 +23,15 @@ use serde::Serialize;
 use serde_json::Value as JValue;
 
 use crate::error::{AppError, Result};
+use crate::mcp::McpServer;
 use crate::models::{ModelRef, Provider, ProviderSummary};
+use crate::overview::Overview;
 use crate::paths::DirInfo;
 use crate::prompts::PromptState;
+use crate::resources::{BuiltinTool, DiscoveredSkill, ResourceEntry};
+use crate::roles::ModelRoles;
+use crate::settings::{SettingEntry, SettingsCatalog};
+use crate::store::LinkState;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -199,6 +211,152 @@ fn link_states() -> Result<Vec<JValue>> {
         .collect()
 }
 
+#[tauri::command]
+fn list_settings() -> Result<SettingsCatalog> {
+    let agent = paths::agent_dir()?;
+    settings::list(&agent)
+}
+
+#[tauri::command]
+fn set_setting(key: String, value: String) -> Result<SettingEntry> {
+    let agent = paths::agent_dir()?;
+    settings::set(&agent, &key, &value)
+}
+
+#[tauri::command]
+fn reset_setting(key: String) -> Result<SettingEntry> {
+    let agent = paths::agent_dir()?;
+    settings::reset(&agent, &key)
+}
+
+#[tauri::command]
+fn get_overview() -> Result<Overview> {
+    overview::get()
+}
+
+#[tauri::command]
+fn list_model_roles() -> Result<ModelRoles> {
+    roles::list()
+}
+
+#[tauri::command]
+fn set_model_role(role: String, selector: String) -> Result<ModelRoles> {
+    roles::set_role(&role, &selector)
+}
+
+#[tauri::command]
+fn delete_model_role(role: String) -> Result<ModelRoles> {
+    roles::delete_role(&role)
+}
+
+#[tauri::command]
+fn set_cycle_order(order: Vec<String>) -> Result<ModelRoles> {
+    roles::set_cycle_order(&order)
+}
+
+#[tauri::command]
+fn list_resources(resource: String) -> Result<Vec<ResourceEntry>> {
+    let agent = paths::agent_dir()?;
+    resources::list(&agent, &resource)
+}
+
+#[tauri::command]
+fn read_resource(resource: String, name: String) -> Result<String> {
+    let agent = paths::agent_dir()?;
+    resources::read(&agent, &resource, &name)
+}
+
+#[tauri::command]
+fn write_resource(resource: String, name: String, content: String) -> Result<ResourceEntry> {
+    let agent = paths::agent_dir()?;
+    resources::write(&agent, &resource, &name, &content)
+}
+
+#[tauri::command]
+fn adopt_resource(resource: String, name: String) -> Result<ResourceEntry> {
+    let agent = paths::agent_dir()?;
+    resources::adopt(&agent, &resource, &name)
+}
+
+#[tauri::command]
+fn delete_resource(resource: String, name: String) -> Result<()> {
+    let agent = paths::agent_dir()?;
+    resources::remove(&agent, &resource, &name)
+}
+
+#[tauri::command]
+fn set_resource_enabled(
+    resource: String,
+    name: String,
+    enabled: bool,
+) -> Result<ResourceEntry> {
+    let agent = paths::agent_dir()?;
+    resources::set_enabled(&agent, &resource, &name, enabled)
+}
+
+#[tauri::command]
+fn restore_resource(resource: String, name: String) -> Result<ResourceEntry> {
+    let agent = paths::agent_dir()?;
+    resources::restore(&agent, &resource, &name)
+}
+
+#[tauri::command]
+fn list_builtin_tools() -> Result<Vec<BuiltinTool>> {
+    resources::builtin_tools()
+}
+
+#[tauri::command]
+fn read_builtin_tool_doc(name: String) -> Result<String> {
+    resources::builtin_tool_doc(&name)
+}
+
+#[tauri::command]
+fn discover_skills() -> Result<Vec<DiscoveredSkill>> {
+    resources::discover_skills()
+}
+
+#[tauri::command]
+fn list_managed_skills() -> Result<Vec<ResourceEntry>> {
+    let agent = paths::agent_dir()?;
+    resources::managed_skills(&agent)
+}
+
+#[tauri::command]
+fn adopt_config_file(name: String) -> Result<LinkState> {
+    if name != mcp::MCP_FILE {
+        return Err(AppError::validation(
+            "name",
+            format!("unsupported config file `{name}`"),
+        ));
+    }
+    let agent = paths::agent_dir()?;
+    store::adopt_rel(&agent, mcp::MCP_FILE)
+}
+
+#[tauri::command]
+fn list_mcp_servers() -> Result<Vec<McpServer>> {
+    let agent = paths::agent_dir()?;
+    mcp::list(&agent)
+}
+
+#[tauri::command]
+fn upsert_mcp_server(name: String, value: JValue) -> Result<McpServer> {
+    let agent = paths::agent_dir()?;
+    mcp::upsert(&agent, &name, value)
+}
+
+#[tauri::command]
+fn delete_mcp_server(name: String) -> Result<()> {
+    let agent = paths::agent_dir()?;
+    mcp::remove(&agent, &name)
+}
+
+#[tauri::command]
+fn set_mcp_server_enabled(name: String, enabled: bool) -> Result<McpServer> {
+    let agent = paths::agent_dir()?;
+    mcp::set_enabled(&agent, &name, enabled)
+}
+
 pub fn run() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
@@ -220,6 +378,30 @@ pub fn run() {
             open_in_file_manager,
             read_config,
             link_states,
+            get_overview,
+            list_settings,
+            set_setting,
+            reset_setting,
+            list_model_roles,
+            set_model_role,
+            delete_model_role,
+            set_cycle_order,
+            list_resources,
+            read_resource,
+            write_resource,
+            adopt_resource,
+            delete_resource,
+            set_resource_enabled,
+            restore_resource,
+            list_builtin_tools,
+            read_builtin_tool_doc,
+            discover_skills,
+            list_managed_skills,
+            adopt_config_file,
+            list_mcp_servers,
+            upsert_mcp_server,
+            delete_mcp_server,
+            set_mcp_server_enabled,
         ])
         .run(tauri::generate_context!())
         .expect("error while running omp-ctl");

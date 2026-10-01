@@ -25,6 +25,12 @@ pub fn read_json() -> Result<JValue> {
 
 /// comment-preserving scalar write at a nested mapping path
 pub fn set_str(path: &[&str], value: &str) -> Result<()> {
+    set_raw(path, value)
+}
+
+/// Comment-preserving write of raw YAML text at a nested mapping path.
+/// `raw` is an already-serialized YAML scalar or flow collection.
+pub fn set_raw(path: &[&str], raw: &str) -> Result<()> {
     if path.is_empty() {
         return Err(AppError::validation("path", "config path is empty"));
     }
@@ -47,7 +53,7 @@ pub fn set_str(path: &[&str], value: &str) -> Result<()> {
         match existing {
             Some(idx) => {
                 if last {
-                    lines[idx] = format!("{}{key}: {value}", " ".repeat(indent));
+                    lines[idx] = format!("{}{key}: {raw}", " ".repeat(indent));
                     return finish(&file, &lines);
                 }
                 insert_at = section_end(&lines, idx);
@@ -58,7 +64,7 @@ pub fn set_str(path: &[&str], value: &str) -> Result<()> {
                 for (j, rest) in path[i..].iter().enumerate() {
                     let ind = (depth + j) * 2;
                     if depth + j + 1 == depth + path.len() - i {
-                        added.push(format!("{}{rest}: {value}", " ".repeat(ind)));
+                        added.push(format!("{}{rest}: {raw}", " ".repeat(ind)));
                     } else {
                         added.push(format!("{}{rest}:", " ".repeat(ind)));
                     }
@@ -69,6 +75,72 @@ pub fn set_str(path: &[&str], value: &str) -> Result<()> {
         }
     }
     finish(&file, &lines)
+}
+
+/// Whether a dotted/nested mapping path exists in config.yml.
+pub fn has_path(path: &[&str]) -> Result<bool> {
+    if path.is_empty() {
+        return Ok(false);
+    }
+    let file = config_path()?;
+    let text = match fs::read_to_string(&file) {
+        Ok(t) => t,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Err(e) => return Err(AppError::fs(&file, e.to_string())),
+    };
+    let lines: Vec<String> = text.lines().map(|s| s.to_string()).collect();
+
+    let mut depth = 0usize;
+    let mut scope_end = lines.len();
+    for (i, key) in path.iter().enumerate() {
+        let last = i + 1 == path.len();
+        let indent = depth * 2;
+        match find_key(&lines, key, indent, scope_end) {
+            Some(idx) => {
+                if last {
+                    return Ok(true);
+                }
+                scope_end = section_end(&lines, idx);
+                depth += 1;
+            }
+            None => return Ok(false),
+        }
+    }
+    Ok(true)
+}
+
+/// Delete a nested mapping key together with its whole child block.
+/// Returns whether anything was removed.
+pub fn remove_path(path: &[&str]) -> Result<bool> {
+    if path.is_empty() {
+        return Err(AppError::validation("path", "config path is empty"));
+    }
+    let file = config_path()?;
+    let text = match fs::read_to_string(&file) {
+        Ok(t) => t,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Err(e) => return Err(AppError::fs(&file, e.to_string())),
+    };
+    let mut lines: Vec<String> = text.lines().map(|s| s.to_string()).collect();
+
+    let mut depth = 0usize;
+    let mut scope_end = lines.len();
+    for (i, key) in path.iter().enumerate() {
+        let last = i + 1 == path.len();
+        let indent = depth * 2;
+        let Some(idx) = find_key(&lines, key, indent, scope_end) else {
+            return Ok(false);
+        };
+        if last {
+            let end = section_end(&lines, idx);
+            lines.drain(idx..end);
+            finish(&file, &lines)?;
+            return Ok(true);
+        }
+        scope_end = section_end(&lines, idx);
+        depth += 1;
+    }
+    Ok(false)
 }
 
 fn finish(file: &Path, lines: &[String]) -> Result<()> {
@@ -116,6 +188,9 @@ fn section_end(lines: &[String], key_idx: usize) -> usize {
     }
     lines.len()
 }
+
+#[cfg(test)]
+mod tests;
 
 
 

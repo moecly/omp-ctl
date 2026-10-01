@@ -1,5 +1,4 @@
 use std::path::PathBuf;
-use std::process::Command;
 
 use serde::{Deserialize, Serialize};
 
@@ -54,12 +53,10 @@ fn non_empty(name: &str) -> Option<String> {
 
 fn agent_dir_inner() -> Result<(PathBuf, DirSource)> {
     // 1. authoritative: omp CLI
-    if let Ok(out) = Command::new("omp").args(["config", "path"]).output() {
-        if out.status.success() {
-            let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
-            if !s.is_empty() {
-                return Ok((PathBuf::from(s), DirSource::OmpCli));
-            }
+    if let Ok(stdout) = crate::proc::omp(&["config", "path"]) {
+        let s = stdout.trim().to_string();
+        if !s.is_empty() {
+            return Ok((PathBuf::from(s), DirSource::OmpCli));
         }
     }
 
