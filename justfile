@@ -53,6 +53,6 @@ serve:
 dev:
     WEBKIT_DISABLE_DMABUF_RENDERER=1 GDK_BACKEND=x11 cargo tauri dev
 
-# Build a release bundle.
-build:
+  # Build a release bundle.
+build: web-build
     cargo tauri build
