@@ -84,9 +84,9 @@ fn links_of(agent: &Path) -> Result<Vec<LinkStateRow>> {
 }
 
 pub fn get() -> Result<Overview> {
+    let version = std::thread::spawn(|| proc::omp(&["--version"]));
     let info = paths::dir_info()?;
     let agent = info.agent.clone();
-
     let providers: Vec<ProviderSummary> = crate::models::load_providers()?
         .into_iter()
         .map(|p| ProviderSummary {
@@ -126,8 +126,9 @@ pub fn get() -> Result<Overview> {
 
     let mcp_servers = mcp::list(&agent).map(|s| s.len()).unwrap_or(0);
 
+    let version = version.join().unwrap();
     Ok(Overview {
-        omp_version: proc::omp(&["--version"]).ok().map(|s| s.trim().to_string()),
+        omp_version: version.ok().map(|s| s.trim().to_string()),
         providers,
         model_count,
         model_roles,

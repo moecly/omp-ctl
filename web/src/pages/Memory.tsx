@@ -14,7 +14,6 @@ export function Memory() {
   const { t } = useApp();
   const catalog = useAsync(() => ipc.listSettings(), []);
   const overview = useAsync(() => ipc.getOverview(), []);
-
   const backend = catalog.data?.entries.find((e) => e.key === "memory.backend");
   const options = backend?.options?.length ? backend.options : MEMORY_OPTIONS;
 
@@ -55,7 +54,8 @@ export function Memory() {
       {catalog.error && <PageError message={catalog.error} onRetry={() => catalog.reload()} />}
       {overview.error && <PageError message={overview.error} onRetry={() => overview.reload()} />}
       <div className="flex items-center gap-3">
-        <Select className="max-w-[260px]" value={current} onChange={(e) => apply(e.target.value)}>
+        <span className="shrink-0 text-[12px] text-[var(--color-fg-muted)]">{t.memory.backend}</span>
+        <Select className="w-auto min-w-0 flex-1 max-w-[260px]" value={current} onChange={(e) => apply(e.target.value)}>
           {options.map((o) => (
             <option key={o} value={o}>
               {o}

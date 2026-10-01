@@ -117,11 +117,14 @@ fn entry_from(
 }
 
 pub fn list(_agent: &Path) -> Result<SettingsCatalog> {
-    let raw = json_catalog()?;
-    let human = proc::omp(&["config", "list"])?;
-    let (tabs, hints) = parse_human_list(&human);
+    let (raw, human) = std::thread::scope(|s| {
+        let json = s.spawn(json_catalog);
+        let human = s.spawn(|| proc::omp(&["config", "list"]));
+        (json.join().unwrap(), human.join().unwrap())
+    });
+    let (tabs, hints) = parse_human_list(&human?);
 
-    let entries = raw
+    let entries = raw?
         .iter()
         .map(|(key, meta)| entry_from(key, meta, hints.get(key)))
         .collect();

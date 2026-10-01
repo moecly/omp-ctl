@@ -82,9 +82,9 @@ export function Models() {
       {providers.error && <PageError message={providers.error} onRetry={() => { providers.reload(); refs.reload(); }} />}
 
       <div className="flex items-center gap-3">
-        <span className="text-[12px] text-[var(--color-fg-muted)]">{t.models.defaultModel}</span>
+        <span className="shrink-0 text-[12px] text-[var(--color-fg-muted)]">{t.models.defaultModel}</span>
         <Select
-          className="max-w-[320px]"
+          className="w-auto min-w-0 flex-1 max-w-[320px]"
           value={defaultId}
           onChange={(e) => setDefault(e.target.value)}
           disabled={saving || !refs.data?.length}
@@ -95,7 +95,7 @@ export function Models() {
             </option>
           ))}
         </Select>
-        <span className="truncate font-mono text-[12px] text-[var(--color-fg-subtle)]">
+        <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-[var(--color-fg-subtle)]">
           {(refs.data ?? []).map((r) => r.id).join(" · ") || "—"}
         </span>
       </div>

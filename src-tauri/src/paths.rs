@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::sync::OnceLock;
 
 use serde::{Deserialize, Serialize};
 
@@ -50,8 +51,18 @@ pub struct DirInfo {
 fn non_empty(name: &str) -> Option<String> {
     std::env::var(name).ok().filter(|v| !v.trim().is_empty())
 }
+static AGENT_DIR_CACHE: OnceLock<(PathBuf, DirSource)> = OnceLock::new();
 
 fn agent_dir_inner() -> Result<(PathBuf, DirSource)> {
+    if let Some(cached) = AGENT_DIR_CACHE.get() {
+        return Ok(cached.clone());
+    }
+    let resolved = agent_dir_uncached()?;
+    let _ = AGENT_DIR_CACHE.set(resolved.clone());
+    Ok(resolved)
+}
+
+fn agent_dir_uncached() -> Result<(PathBuf, DirSource)> {
     // 1. authoritative: omp CLI
     if let Ok(stdout) = crate::proc::omp(&["config", "path"]) {
         let s = stdout.trim().to_string();

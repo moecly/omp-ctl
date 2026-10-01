@@ -43,6 +43,10 @@
 }
 
 @layer base {
+  :root {
+    color-scheme: dark;
+  }
+
   *,
   *::before,
   *::after {
@@ -64,6 +68,11 @@
     line-height: 1.45;
     -webkit-font-smoothing: antialiased;
     overflow: hidden;
+  }
+
+  option {
+    background-color: var(--color-surface-2);
+    color: var(--color-fg);
   }
 
   ::-webkit-scrollbar {

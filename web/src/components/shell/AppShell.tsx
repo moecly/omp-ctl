@@ -52,7 +52,6 @@ export function AppShell({ children }: { children: (route: Route) => ReactNode }
   useEffect(() => {
     if (import.meta.env.DEV) assertLocaleParity();
   }, []);
-
   useEffect(() => install(), []);
 
   useEffect(() => {

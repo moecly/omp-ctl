@@ -9,7 +9,7 @@ Tauri 2 桌面 GUI，管理 omp 配置。`~/.omp-ctl/` 为唯一真实来源，
 web/                    React + TypeScript + Vite + Tailwind v4 前端（bun 管理依赖）
   src/
     styles/app.css      唯一样式入口：@import "tailwindcss" + @theme token + @layer base
-    lib/                ipc（Tauri 命令封装）、types（后端 DTO）、router、i18n、prefs、
+    lib/                ipc（Tauri 命令封装，读经 queryCache 做 30s SWR 缓存）、types（后端 DTO）、router、i18n、prefs、
                         toast、hotkeys、format、cn（clsx+tailwind-merge）
     hooks/              useAsync（加载/错误/reload）、useApp（全局上下文）
     components/ui/      UI 原语（Button/Input/Dialog/CodeEditor/Tabs/...），纯 Tailwind
@@ -20,7 +20,7 @@ src-tauri/src/
   lib.rs                Tauri 命令注册（42 个）+ SANDBOX_LOCK(cfg test)
   main.rs               3 行，调用 omp_ctl_lib::run()
   error.rs              AppError（serde tag="kind"）；Result<T, E = AppError>
-  paths.rs              home/store_dir/agent_dir 解析 + DirInfo/DirSource
+  paths.rs              home/store_dir/agent_dir 解析 + DirInfo/DirSource（agent_dir 经 OnceLock 进程内缓存，避免每命令起 omp 子进程）
   proc.rs               omp 子进程封装
   store.rs              链接状态、接管、还原、原子写、.links.json
   yaml.rs               YamlDoc：行区间 YAML 编辑，保留注释

@@ -21,6 +21,7 @@ import { useApp } from "../../hooks/useApp";
 import type { Route } from "../../lib/router";
 import type { Strings } from "../../lib/i18n";
 import { cn } from "../../lib/cn";
+import { prefetchRoute } from "../../lib/ipc";
 import { IconButton } from "../ui";
 
 interface NavItem {
@@ -80,6 +81,7 @@ export function Sidebar({
         type="button"
         title={t.nav[item.key]}
         onClick={() => onNavigate(item.page)}
+        onMouseEnter={() => prefetchRoute(item.page)}
         className={cn(
           "flex h-[30px] items-center gap-2.5 rounded-[var(--radius-md)] px-2 text-[13px]",
           collapsed && "justify-center px-0",
