@@ -86,10 +86,13 @@ fn write_then_read_roundtrips_for_dir_layout() {
 #[test]
 fn set_enabled_false_on_foreign_link_errors() {
     let sb = Sandbox::new("foreign");
-    fs::create_dir_all(sb.agent().join("extensions")).unwrap();
     let real = sb.root.join("rtk.ts");
+    fs::create_dir_all(sb.agent().join("extensions")).unwrap();
     fs::write(&real, "export default 1").unwrap();
+    #[cfg(unix)]
     std::os::unix::fs::symlink(&real, sb.agent().join("extensions/rtk.ts")).unwrap();
+    #[cfg(windows)]
+    std::os::windows::fs::symlink_file(&real, sb.agent().join("extensions/rtk.ts")).unwrap();
 
     let entry = list(&sb.agent(), "extensions").unwrap().remove(0);
     assert!(entry.foreign);

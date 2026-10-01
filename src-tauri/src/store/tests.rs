@@ -1,8 +1,21 @@
 #![cfg(test)]
 
 use std::fs;
-use std::os::unix::fs::symlink;
 use std::path::Path;
+
+#[cfg(unix)]
+use std::os::unix::fs::symlink;
+#[cfg(windows)]
+use std::os::windows::fs::{symlink_dir, symlink_file};
+
+#[cfg(windows)]
+fn symlink(target: &Path, link: &Path) -> std::io::Result<()> {
+    if target.is_dir() {
+        symlink_dir(target, link)
+    } else {
+        symlink_file(target, link)
+    }
+}
 
 use super::*;
 

@@ -1,9 +1,22 @@
 use std::collections::BTreeMap;
 use std::fs;
 use std::io::Write;
-use std::os::unix::fs::symlink;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
+
+#[cfg(unix)]
+fn symlink(target: &Path, link: &Path, _is_dir: bool) -> std::io::Result<()> {
+    std::os::unix::fs::symlink(target, link)
+}
+
+#[cfg(windows)]
+fn symlink(target: &Path, link: &Path, is_dir: bool) -> std::io::Result<()> {
+    if is_dir {
+        std::os::windows::fs::symlink_dir(target, link)
+    } else {
+        std::os::windows::fs::symlink_file(target, link)
+    }
+}
 
 use serde::{Deserialize, Serialize};
 
@@ -116,7 +129,8 @@ fn write_link_rel(agent_root: &Path, rel: &str) -> Result<()> {
     if let Some(parent) = target.parent() {
         fs::create_dir_all(parent).map_err(|e| AppError::fs(parent, e.to_string()))?;
     }
-    symlink(target, &dst).map_err(|e| AppError::fs(&dst, e.to_string()))?;
+    let is_dir = target.is_dir();
+    symlink(&target, &dst, is_dir).map_err(|e| AppError::fs(&dst, e.to_string()))?;
     Ok(())
 }
 
@@ -182,7 +196,7 @@ fn copy_dir_all(src: &Path, dst: &Path) -> Result<()> {
         let meta = fs::symlink_metadata(&from).map_err(|e| AppError::fs(&from, e.to_string()))?;
         if meta.file_type().is_symlink() {
             let target = fs::read_link(&from).map_err(|e| AppError::fs(&from, e.to_string()))?;
-            symlink(target, &to).map_err(|e| AppError::fs(&to, e.to_string()))?;
+            symlink(&target, &to, from.is_dir()).map_err(|e| AppError::fs(&to, e.to_string()))?;
         } else if meta.is_dir() {
             copy_dir_all(&from, &to)?;
         } else {
@@ -529,7 +543,7 @@ pub fn import_snapshot(path: &Path) -> Result<()> {
                 fs::create_dir_all(parent).map_err(|e| AppError::fs(parent, e.to_string()))?;
             }
             if fs::symlink_metadata(&agent_path).is_err() {
-                symlink(target, &agent_path).map_err(|e| AppError::fs(&agent_path, e.to_string()))?;
+                symlink(&target, &agent_path, target.is_dir()).map_err(|e| AppError::fs(&agent_path, e.to_string()))?;
             }
         }
         Ok(())
