@@ -1,0 +1,11 @@
+.direnv/
+result
+
+target/
+src-tauri/target/
+
+.codegraph/
+
+node_modules/
+
+*.bak.*

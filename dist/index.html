@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>omp-ctl</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="dirs">
+        <div class="dir">
+          <span class="dir-label">仓库目录</span>
+          <code id="store-dir">…</code>
+        </div>
+        <div class="dir">
+          <span class="dir-label">Agent 目录</span>
+          <code id="agent-dir">…</code>
+          <span class="badge source" id="agent-source"></span>
+        </div>
+      </div>
+      <button id="open-store" class="btn ghost">在文件管理器中打开</button>
+    </header>
+
+    <nav class="tabs">
+      <button class="tab active" data-panel="models">模型</button>
+      <button class="tab" data-panel="prompts">提示词</button>
+    </nav>
+
+    <main>
+      <section id="panel-models" class="panel active">
+        <div class="split">
+          <aside class="list">
+            <div class="list-head">
+              <strong>Providers</strong>
+              <button id="new-provider" class="btn small">新建</button>
+            </div>
+            <ul id="provider-list"></ul>
+          </aside>
+
+          <div class="detail">
+            <form id="provider-form" autocomplete="off">
+              <div class="grid2">
+                <label>
+                  <span>id</span>
+                  <input id="p-id" required />
+                </label>
+                <label>
+                  <span>api</span>
+                  <select id="p-api">
+                    <option value="">(继承默认)</option>
+                    <option value="openai-completions">openai-completions</option>
+                    <option value="openai-responses">openai-responses</option>
+                    <option value="anthropic-messages">anthropic-messages</option>
+                    <option value="google-generative-ai">google-generative-ai</option>
+                  </select>
+                </label>
+                <label class="span2">
+                  <span>baseUrl</span>
+                  <input id="p-baseurl" placeholder="https://api.example.com" />
+                </label>
+                <label class="span2">
+                  <span>apiKey</span>
+                  <input id="p-apikey" type="password" />
+                </label>
+              </div>
+
+              <div class="checks">
+                <label class="check">
+                  <input type="checkbox" id="p-authnone" />
+                  <span>auth: none</span>
+                </label>
+                <label class="check">
+                  <input type="checkbox" id="p-strict" />
+                  <span>disableStrictTools</span>
+                </label>
+              </div>
+
+              <div class="models-head">
+                <strong>models</strong>
+                <div class="row-actions">
+                  <button type="button" id="probe" class="btn small">探测模型</button>
+                  <button type="button" id="add-model" class="btn small">添加模型</button>
+                </div>
+              </div>
+              <div id="probe-result" class="probe-result"></div>
+              <table class="models">
+                <thead>
+                  <tr>
+                    <th>id</th>
+                    <th>name</th>
+                    <th>api</th>
+                    <th title="reasoning">r</th>
+                    <th title="image input">img</th>
+                    <th>contextWindow</th>
+                    <th>maxTokens</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="model-rows"></tbody>
+              </table>
+
+              <div class="actions">
+                <button type="submit" class="btn primary">保存</button>
+                <button type="button" id="delete-provider" class="btn danger">删除</button>
+                <button type="button" id="set-default" class="btn">设为默认模型</button>
+                <span id="form-status" class="status"></span>
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <section id="panel-prompts" class="panel">
+        <div id="prompt-cards" class="cards"></div>
+      </section>
+    </main>
+
+    <div id="editor" class="modal hidden">
+      <div class="modal-box">
+        <div class="modal-head">
+          <strong id="editor-title">编辑</strong>
+          <span id="editor-path" class="muted"></span>
+        </div>
+        <textarea id="editor-text" spellcheck="false"></textarea>
+        <div class="modal-foot">
+          <span id="editor-status" class="status"></span>
+          <button id="editor-cancel" class="btn ghost">取消</button>
+          <button id="editor-save" class="btn primary">保存</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="confirm" class="modal hidden">
+      <div class="modal-box narrow">
+        <div class="modal-head"><strong>确认接管</strong></div>
+        <p id="confirm-text"></p>
+        <div class="modal-foot">
+          <button id="confirm-cancel" class="btn ghost">取消</button>
+          <button id="confirm-ok" class="btn primary">继续</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
