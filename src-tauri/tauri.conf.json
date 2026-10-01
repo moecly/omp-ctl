@@ -6,8 +6,8 @@
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://127.0.0.1:1420",
-    "beforeDevCommand": "cd ../web && bun run dev",
-    "beforeBuildCommand": "cd ../web && bun run build"
+    "beforeDevCommand": "bun --cwd ../web run dev",
+    "beforeBuildCommand": "bun --cwd ../web run build"
   },
   "app": {
     "withGlobalTauri": true,
