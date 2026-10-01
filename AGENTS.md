@@ -35,6 +35,8 @@ src-tauri/src/
   harness.rs            无 Tauri 的入口，供集成测试调用
 src-tauri/tests/
   real_agent_dir.rs     针对真实 agent 目录的集成测试
+src-tauri/icons/         `cargo tauri icon` 生成的图标集（`bundle.icon` 引用）
+.github/workflows/release.yml  推送 tag `v*` 触发三平台打包（Linux 仅 deb+rpm，无 AppImage）
 ```
 
 ## 关键约定
@@ -64,7 +66,7 @@ just dev        # 启动 Tauri 窗口（beforeDevCommand 自动拉起 Vite）
 just check-rust # cargo check
 just test       # cargo test
 just fmt-rust   # cargo fmt
-just build      # cargo tauri build
+just build      # cargo tauri build（deb + rpm）
 ```
 
 `just dev` 已由 `beforeDevCommand` 自动启动 Vite，无需另开 `just serve`。

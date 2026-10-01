@@ -19,6 +19,18 @@ import {
 } from "../components/ui";
 import { PageError, PageSkeleton } from "../components/ui/PageState";
 import { PageContainer } from "../components/shell/PageContainer";
+const THINKING_LEVELS = ["off", "minimal", "low", "medium", "high", "xhigh", "max", "auto"];
+
+function splitSelector(selector: string): [string, string] {
+  const i = selector.lastIndexOf(":");
+  if (i > 0 && THINKING_LEVELS.includes(selector.slice(i + 1))) return [selector.slice(0, i), selector.slice(i + 1)];
+  return [selector, ""];
+}
+
+function joinSelector(model: string, level: string): string {
+  return level ? `${model}:${level}` : model;
+}
+
 const KNOWN_ROLES: [string, string][] = [
   ["default", "Normal interactive work and the main-session default"],
   ["smol", "Fast, inexpensive utility work and fast handoff paths"],
@@ -39,6 +51,7 @@ export function ModelRoles() {
 
   const [newRole, setNewRole] = useState("");
   const [newSelector, setNewSelector] = useState("");
+  const [newLevel, setNewLevel] = useState("");
   const [creating, setCreating] = useState(false);
   const [cycle, setCycle] = useState("");
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -52,10 +65,11 @@ export function ModelRoles() {
   const create = async () => {
     if (!newRole.trim() || !newSelector.trim()) return;
     try {
-      await ipc.setModelRole(newRole.trim(), newSelector.trim());
+      await ipc.setModelRole(newRole.trim(), joinSelector(newSelector.trim(), newLevel));
       toast.success(t.common.save, newRole.trim());
       setNewRole("");
       setNewSelector("");
+      setNewLevel("");
       setCreating(false);
       roles.reload();
     } catch (e) {
@@ -134,7 +148,11 @@ export function ModelRoles() {
         />
       ) : (
         <div className="divide-y divide-[var(--color-border)]">
-          {entries.map(([role, selector]) => (
+          {entries.map(([role, selector]) => {
+            const [model, level] = splitSelector(selector);
+            const ref = (refs.data ?? []).find((r) => r.id === model);
+            const levels = ref?.thinking?.length ? ref.thinking : THINKING_LEVELS;
+            return (
             <div key={role} className="group flex h-[44px] items-center gap-3 px-1 py-2.5 hover:bg-[var(--color-hover)]">
               <div className="flex min-w-0 flex-1 items-center gap-2">
                 <span className="text-[13px] font-medium text-[var(--color-fg)]">{role}</span>
@@ -142,14 +160,29 @@ export function ModelRoles() {
                 {roles.data?.cycleOrder.includes(role) && <Badge tone="accent">cycle</Badge>}
               </div>
               <Select
-                className="w-[280px]"
-                value={selector}
-                onChange={(e) => update(role, e.target.value)}
+                className="w-[240px]"
+                value={selectors.includes(model) ? model : ""}
+                onChange={(e) => update(role, joinSelector(e.target.value, level))}
               >
-                {!selectors.includes(selector) && <option value={selector}>{selector}</option>}
+                {!selectors.includes(model) && <option value="">{model}</option>}
                 {selectors.map((s) => (
                   <option key={s} value={s}>
                     {s}
+                  </option>
+                ))}
+              </Select>
+              <Select
+                className="w-[140px]"
+                aria-label={t.roles.thinkingLevel}
+                title={t.roles.thinkingLevel}
+                value={level}
+                onChange={(e) => update(role, joinSelector(model, e.target.value))}
+              >
+                <option value="">{t.models.unset}</option>
+                {!levels.includes(level) && level && <option value={level}>{level}</option>}
+                {levels.map((l) => (
+                  <option key={l} value={l}>
+                    {l}
                   </option>
                 ))}
               </Select>
@@ -161,7 +194,8 @@ export function ModelRoles() {
                 <Trash2 size={14} />
               </IconButton>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
       {missing.length > 0 && (
@@ -226,6 +260,16 @@ export function ModelRoles() {
               onChange={(e) => setNewSelector(e.target.value)}
               placeholder="axon/model"
             />
+          </Field>
+          <Field label={t.roles.thinkingLevel}>
+            <Select value={newLevel} onChange={(e) => setNewLevel(e.target.value)}>
+              <option value="">{t.models.unset}</option>
+              {THINKING_LEVELS.map((l) => (
+                <option key={l} value={l}>
+                  {l}
+                </option>
+              ))}
+            </Select>
           </Field>
           <datalist id="role-selectors">
             {selectors.map((s) => (

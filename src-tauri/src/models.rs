@@ -62,6 +62,8 @@ pub struct ModelRef {
     pub id: String,
     #[serde(default)]
     pub name: Option<String>,
+    #[serde(default)]
+    pub thinking: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
