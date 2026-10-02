@@ -4,6 +4,7 @@ import { cachedInvoke, invalidate, prefetch } from "./queryCache";
 import type {
   BuiltinTool,
   CatalogModel,
+  Defaults,
   DirInfo,
   DiscoveredSkill,
   Json,
@@ -12,6 +13,7 @@ import type {
   ModelRef,
   ModelRoles,
   Overview,
+  Preset,
   PromptState,
   Provider,
   ProviderSummary,
@@ -144,6 +146,30 @@ export const ipc = {
     return r;
   },
 
+  getDefaults: () => get("defaults", () => invoke<Defaults>("get_defaults")),
+  setDefaults: async (defaults: Defaults) => {
+    const r = await invoke<Defaults>("set_defaults", { defaults });
+    invalidate("defaults");
+    return r;
+  },
+  listPresets: () => get("presets", () => invoke<Preset[]>("list_presets")),
+  savePreset: async (name: string, roles: Record<string, string>, order: string[]) => {
+    const r = await invoke<Preset[]>("save_preset", { name, roles, order });
+    invalidate("presets");
+    return r;
+  },
+  deletePreset: async (name: string) => {
+    const r = await invoke<Preset[]>("delete_preset", { name });
+    invalidate("presets");
+    return r;
+  },
+  applyPreset: async (name: string) => {
+    const r = await invoke<ModelRoles>("apply_preset", { name });
+    invalidate("model-roles");
+    invalidate("overview");
+    return r;
+  },
+
   listResources: (resource: ResourceId | string) =>
     get(`resources:${resource}`, () => invoke<ResourceEntry[]>("list_resources", { resource })),
   readResource: (resource: string, name: string) =>
@@ -251,6 +277,7 @@ export function prefetchRoute(page: string, param?: string) {
     case "skills":
     case "agents":
     case "hooks":
+    case "extensions":
       prefetch(`resources:${page === "hooks" ? "hooks_pre" : page}`, () =>
         invoke("list_resources", {
           resource: page === "hooks" ? "hooks_pre" : page,
@@ -266,6 +293,8 @@ export function prefetchRoute(page: string, param?: string) {
     case "memory":
     case "settings":
       prefetch("settings", () => invoke("list_settings"), TTL);
+      prefetch("defaults", () => invoke("get_defaults"), TTL);
+      prefetch("presets", () => invoke("list_presets"), TTL);
       break;
   }
   if (param) prefetch(`provider:${param}`, () => invoke("get_provider", { id: param }), TTL);

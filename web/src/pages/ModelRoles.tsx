@@ -4,7 +4,8 @@ import { Check, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { useApp } from "../hooks/useApp";
 import { useAsync } from "../hooks/useAsync";
 import { ipc } from "../lib/ipc";
-import { errorText, type ModelRef, type ModelRoles as ModelRolesData } from "../lib/types";
+import { errorText, type Defaults, type ModelRef, type ModelRoles as ModelRolesData } from "../lib/types";
+import { joinSelector, splitSelector, THINKING_LEVELS } from "../lib/modelMeta";
 import { toast } from "../lib/toast";
 import {
   Badge,
@@ -19,17 +20,7 @@ import {
 } from "../components/ui";
 import { PageError, PageSkeleton } from "../components/ui/PageState";
 import { PageContainer } from "../components/shell/PageContainer";
-const THINKING_LEVELS = ["off", "minimal", "low", "medium", "high", "xhigh", "max", "auto"];
-
-function splitSelector(selector: string): [string, string] {
-  const i = selector.lastIndexOf(":");
-  if (i > 0 && THINKING_LEVELS.includes(selector.slice(i + 1))) return [selector.slice(0, i), selector.slice(i + 1)];
-  return [selector, ""];
-}
-
-function joinSelector(model: string, level: string): string {
-  return level ? `${model}:${level}` : model;
-}
+import { PresetBar } from "../components/roles/PresetBar";
 
 const KNOWN_ROLES: [string, string][] = [
   ["default", "Normal interactive work and the main-session default"],
@@ -48,6 +39,8 @@ export function ModelRoles() {
   const { t } = useApp();
   const roles = useAsync<ModelRolesData>(() => ipc.listModelRoles(), []);
   const refs = useAsync<ModelRef[]>(() => ipc.listModelRefs(), []);
+  const defaults = useAsync<Defaults>(() => ipc.getDefaults(), []);
+  const defLevel = defaults.data?.roleThinkingLevel ?? "";
 
   const [newRole, setNewRole] = useState("");
   const [newSelector, setNewSelector] = useState("");
@@ -65,7 +58,7 @@ export function ModelRoles() {
   const create = async () => {
     if (!newRole.trim() || !newSelector.trim()) return;
     try {
-      await ipc.setModelRole(newRole.trim(), joinSelector(newSelector.trim(), newLevel));
+      await ipc.setModelRole(newRole.trim(), joinSelector(newSelector.trim(), newLevel || defLevel));
       toast.success(t.common.save, newRole.trim());
       setNewRole("");
       setNewSelector("");
@@ -106,8 +99,9 @@ export function ModelRoles() {
   const quickAdd = async (role: string) => {
     const selector = selectors[0] ?? Object.values(roles.data?.roles ?? {})[0] ?? "";
     if (!selector) return;
+    const [m, l] = splitSelector(selector);
     try {
-      await ipc.setModelRole(role, selector);
+      await ipc.setModelRole(role, joinSelector(m, l || defLevel));
       toast.success(t.common.save, role);
       roles.reload();
     } catch (e) {
@@ -124,7 +118,10 @@ export function ModelRoles() {
             <RotateCcw size={14} />
             {t.common.refresh}
           </Button>
-          <Button variant="primary" size="sm" onClick={() => setCreating(true)}>
+          <Button variant="primary" size="sm" onClick={() => {
+              setNewLevel(defLevel);
+              setCreating(true);
+            }}>
             <Plus size={14} />
             {t.roles.add}
           </Button>
@@ -134,13 +131,18 @@ export function ModelRoles() {
       {roles.error && <PageError message={roles.error} onRetry={roles.reload} />}
       {refs.error && <PageError message={refs.error} onRetry={refs.reload} />}
 
+      <PresetBar onApplied={roles.reload} />
+
       {roles.loading ? (
         <PageSkeleton rows={4} />
       ) : entries.length === 0 ? (
         <EmptyState
           title={t.common.empty}
           action={
-            <Button variant="primary" size="sm" onClick={() => setCreating(true)}>
+            <Button variant="primary" size="sm" onClick={() => {
+              setNewLevel(defLevel);
+              setCreating(true);
+            }}>
               <Plus size={14} />
               {t.roles.add}
             </Button>

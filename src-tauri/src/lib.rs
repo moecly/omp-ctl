@@ -2,11 +2,13 @@
 pub(crate) static SANDBOX_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 mod config_edit;
+mod defaults;
 pub mod error;
 mod mcp;
 mod models;
 mod overview;
 mod paths;
+mod presets;
 mod proc;
 mod prompts;
 mod resources;
@@ -17,16 +19,19 @@ mod yaml;
 
 pub mod harness;
 
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use serde::Serialize;
 use serde_json::Value as JValue;
 
+use crate::defaults::Defaults;
 use crate::error::{AppError, Result};
 use crate::mcp::McpServer;
 use crate::models::{CatalogModel, ModelRef, Provider, ProviderSummary};
 use crate::overview::Overview;
 use crate::paths::DirInfo;
+use crate::presets::PresetEntry;
 use crate::prompts::PromptState;
 use crate::resources::{BuiltinTool, DiscoveredSkill, ResourceEntry};
 use crate::roles::ModelRoles;
@@ -395,6 +400,40 @@ fn set_mcp_server_enabled(name: String, enabled: bool) -> Result<McpServer> {
     mcp::set_enabled(&agent, &name, enabled)
 }
 
+#[tauri::command]
+fn get_defaults() -> Result<Defaults> {
+    defaults::read()
+}
+
+#[tauri::command]
+fn set_defaults(defaults: Defaults) -> Result<Defaults> {
+    defaults::write(&defaults)
+}
+
+#[tauri::command]
+fn list_presets() -> Result<Vec<PresetEntry>> {
+    presets::list()
+}
+
+#[tauri::command]
+fn save_preset(
+    name: String,
+    roles: BTreeMap<String, String>,
+    order: Vec<String>,
+) -> Result<Vec<PresetEntry>> {
+    presets::save(&name, roles, order)
+}
+
+#[tauri::command]
+fn delete_preset(name: String) -> Result<Vec<PresetEntry>> {
+    presets::delete(&name)
+}
+
+#[tauri::command]
+fn apply_preset(name: String) -> Result<ModelRoles> {
+    presets::apply(&name)
+}
+
 pub fn run() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
@@ -447,6 +486,12 @@ pub fn run() {
             upsert_mcp_server,
             delete_mcp_server,
             set_mcp_server_enabled,
+            get_defaults,
+            set_defaults,
+            list_presets,
+            save_preset,
+            delete_preset,
+            apply_preset,
         ])
         .run(tauri::generate_context!())
         .expect("error while running omp-ctl");

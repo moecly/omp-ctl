@@ -30,6 +30,8 @@ export function App() {
             return <Resources resource="agents" />;
           case "hooks":
             return <Resources resource="hooks_pre" />;
+          case "extensions":
+            return <Resources resource="extensions" />;
           case "mcp":
             return <Mcp />;
           case "tools":

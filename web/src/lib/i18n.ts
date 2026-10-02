@@ -162,6 +162,31 @@ export interface Strings {
     quickAdd: string;
     thinkingLevel: string;
   };
+  defaults: {
+    title: string;
+    roleThinkingLevel: string;
+    roleThinkingLevelHint: string;
+    modelDefaults: string;
+    api: string;
+    contextWindow: string;
+    maxTokens: string;
+    thinkingLevel: string;
+    thinkingLevelHint: string;
+    reasoning: string;
+    imageInput: string;
+    save: string;
+  };
+  presets: {
+    title: string;
+    captureCurrent: string;
+    overwrite: string;
+    deleteConfirm: string;
+    namePrompt: string;
+    empty: string;
+    applied: string;
+    saved: string;
+    deleted: string;
+  };
   prompts: {
     title: string;
     risk: string;
@@ -215,6 +240,7 @@ export interface Strings {
   };
   settings: {
     title: string;
+    ompCtl: string;
     configured: string;
     unset: string;
     resetConfirm: string;
@@ -400,6 +426,31 @@ const zh: Strings = {
     quickAdd: "常用角色快捷添加",
     thinkingLevel: "思考强度",
   },
+  defaults: {
+    title: "默认值",
+    roleThinkingLevel: "新增模型角色默认思考等级",
+    roleThinkingLevelHint: "新增模型角色未指定等级时套用",
+    modelDefaults: "模型字段默认",
+    api: "API 协议",
+    contextWindow: "上下文窗口",
+    maxTokens: "最大输出",
+    thinkingLevel: "新增模型条目默认思考等级",
+    thinkingLevelHint: "新增模型条目未指定等级时套用",
+    reasoning: "推理模型",
+    imageInput: "支持图片",
+    save: "保存默认值",
+  },
+  presets: {
+    title: "预设",
+    captureCurrent: "以当前配置新建",
+    overwrite: "用当前配置覆盖",
+    deleteConfirm: "删除预设 {name}？",
+    namePrompt: "预设名称",
+    empty: "还没有预设",
+    applied: "已应用预设",
+    saved: "已保存预设",
+    deleted: "已删除预设",
+  },
   prompts: {
     title: "系统提示词",
     risk: "风险",
@@ -453,6 +504,7 @@ const zh: Strings = {
   },
   settings: {
     title: "设置",
+    ompCtl: "omp-ctl",
     configured: "已显式配置",
     unset: "使用默认值",
     resetConfirm: "确定重置 {key} 为默认值？",
@@ -638,6 +690,31 @@ const en: Strings = {
     quickAdd: "Quick-add common roles",
     thinkingLevel: "Thinking level",
   },
+  defaults: {
+    title: "Defaults",
+    roleThinkingLevel: "Default thinking level for new roles",
+    roleThinkingLevelHint: "Applied to new roles without an explicit level",
+    modelDefaults: "Model field defaults",
+    api: "API protocol",
+    contextWindow: "Context window",
+    maxTokens: "Max output",
+    thinkingLevel: "Default thinking level for new model entries",
+    thinkingLevelHint: "Applied to new model entries without an explicit level",
+    reasoning: "Reasoning model",
+    imageInput: "Image input",
+    save: "Save defaults",
+  },
+  presets: {
+    title: "Presets",
+    captureCurrent: "Capture current",
+    overwrite: "Overwrite with current",
+    deleteConfirm: "Delete preset {name}?",
+    namePrompt: "Preset name",
+    empty: "No presets yet",
+    applied: "Preset applied",
+    saved: "Preset saved",
+    deleted: "Preset deleted",
+  },
   prompts: {
     title: "System Prompts",
     risk: "Risk",
@@ -691,6 +768,7 @@ const en: Strings = {
   },
   settings: {
     title: "Settings",
+    ompCtl: "omp-ctl",
     configured: "Explicitly set",
     unset: "Default",
     resetConfirm: "Reset {key} to its default?",

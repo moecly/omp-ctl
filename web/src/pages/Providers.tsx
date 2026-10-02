@@ -4,7 +4,8 @@ import { Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { useApp } from "../hooks/useApp";
 import { useAsync } from "../hooks/useAsync";
 import { ipc } from "../lib/ipc";
-import { errorText, type CatalogModel, type ModelEntry, type Provider, type ProviderSummary } from "../lib/types";
+import { errorText, type CatalogModel, type Defaults, type ModelEntry, type Provider, type ProviderSummary } from "../lib/types";
+import { API_PRESETS, THINKING_LEVELS } from "../lib/modelMeta";
 import { toast } from "../lib/toast";
 import { cn } from "../lib/cn";
 import {
@@ -33,10 +34,6 @@ const BLANK: Provider = {
   models: [],
   raw: {},
 };
-
-const API_PRESETS = ["anthropic-messages", "openai-chat", "openai-responses", "google-gemini"];
-
-const THINKING_LEVELS = ["off", "minimal", "low", "medium", "high", "xhigh", "max", "auto"];
 
 export function Providers({ param }: { param?: string }) {
   const { t } = useApp();
@@ -229,6 +226,21 @@ function ProviderForm({
   const [probedIds, setProbedIds] = useState<string[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
 
+  const defaults = useAsync<Defaults>(() => ipc.getDefaults(), []);
+  const md = defaults.data?.model;
+
+  const blankModel = (): ModelEntry =>
+    ({
+      id: "",
+      api: md?.api || undefined,
+      reasoning: md?.reasoning ?? false,
+      imageInput: md?.imageInput ?? false,
+      contextWindow: md?.contextWindow,
+      maxTokens: md?.maxTokens,
+      thinkingLevel: md?.thinkingLevel || undefined,
+      raw: {},
+    }) as ModelEntry;
+
   const patch = (next: Partial<Provider>) => setDraft((d) => ({ ...d, ...next }));
   const patchModel = (index: number, next: Partial<ModelEntry>) =>
     setDraft((d) => ({ ...d, models: d.models.map((m, i) => (i === index ? { ...m, ...next } : m)) }));
@@ -296,11 +308,11 @@ function ProviderForm({
           id,
           name: c?.name,
           api: undefined,
-          reasoning: c?.reasoning ?? false,
-          imageInput: c?.imageInput ?? false,
-          contextWindow: c?.contextWindow,
-          maxTokens: c?.maxTokens,
-          thinkingLevel: c?.thinking?.[0],
+          reasoning: c ? c.reasoning : (md?.reasoning ?? false),
+          imageInput: c ? c.imageInput : (md?.imageInput ?? false),
+          contextWindow: c?.contextWindow ?? md?.contextWindow,
+          maxTokens: c?.maxTokens ?? md?.maxTokens,
+          thinkingLevel: (c?.thinking?.length ? c.thinking[0] : undefined) ?? (md?.thinkingLevel || undefined),
           raw: {},
         } as ModelEntry;
       });
@@ -479,10 +491,7 @@ function ProviderForm({
           className="self-start"
           onClick={() =>
             patch({
-              models: [
-                ...draft.models,
-                { id: "", reasoning: false, imageInput: false, raw: {} } as ModelEntry,
-              ],
+              models: [...draft.models, blankModel()],
             })
           }
         >

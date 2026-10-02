@@ -152,6 +152,26 @@ export interface ModelRoles {
   cycleOrder: string[];
 }
 
+export interface ModelDefaults {
+  api?: string;
+  reasoning: boolean;
+  imageInput: boolean;
+  contextWindow?: number;
+  maxTokens?: number;
+  thinkingLevel?: string;
+}
+
+export interface Defaults {
+  model: ModelDefaults;
+  roleThinkingLevel?: string;
+}
+
+export interface Preset {
+  name: string;
+  roles: Record<string, string>;
+  cycleOrder: string[];
+}
+
 export interface McpServer {
   name: string;
   enabled: boolean;

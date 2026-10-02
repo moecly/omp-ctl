@@ -8,6 +8,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Plug,
+  Puzzle,
   Save,
   Server,
   Settings,
@@ -44,6 +45,7 @@ const GROUP_RESOURCES: NavItem[] = [
   { page: "agents", key: "agents", icon: Bot },
   { page: "mcp", key: "mcp", icon: Plug },
   { page: "hooks", key: "hooks", icon: Webhook },
+  { page: "extensions", key: "extensions", icon: Puzzle },
   { page: "tools", key: "tools", icon: Wrench },
 ];
 

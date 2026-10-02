@@ -1,20 +1,23 @@
 //! Non-Tauri entry points into the same logic the GUI commands call.
 //! Used by the headless e2e driver and by integration tests.
 
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use serde_json::Value as JValue;
 
+use crate::defaults::Defaults;
 use crate::error::{AppError, Result};
 use crate::mcp::McpServer;
 use crate::models::{Provider, ProviderSummary};
 use crate::overview::Overview;
 use crate::paths::DirInfo;
+use crate::presets::PresetEntry;
 use crate::prompts::PromptState;
 use crate::resources::{BuiltinTool, DiscoveredSkill, ResourceEntry};
 use crate::roles::ModelRoles;
 use crate::settings::{SettingEntry, SettingsCatalog};
-use crate::{models, paths, prompts, store};
+use crate::{defaults, models, paths, presets, prompts, store};
 
 pub fn dir_info() -> Result<DirInfo> {
     paths::dir_info()
@@ -259,4 +262,32 @@ pub fn delete_mcp_server(name: String) -> Result<()> {
 pub fn set_mcp_server_enabled(name: String, enabled: bool) -> Result<McpServer> {
     let agent = paths::agent_dir()?;
     crate::mcp::set_enabled(&agent, &name, enabled)
+}
+
+pub fn defaults() -> Result<Defaults> {
+    defaults::read()
+}
+
+pub fn set_defaults(value: Defaults) -> Result<Defaults> {
+    defaults::write(&value)
+}
+
+pub fn presets() -> Result<Vec<PresetEntry>> {
+    presets::list()
+}
+
+pub fn save_preset(
+    name: String,
+    roles: BTreeMap<String, String>,
+    order: Vec<String>,
+) -> Result<Vec<PresetEntry>> {
+    presets::save(&name, roles, order)
+}
+
+pub fn delete_preset(name: String) -> Result<Vec<PresetEntry>> {
+    presets::delete(&name)
+}
+
+pub fn apply_preset(name: String) -> Result<ModelRoles> {
+    presets::apply(&name)
 }

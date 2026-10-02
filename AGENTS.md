@@ -9,23 +9,27 @@ Tauri 2 桌面 GUI，管理 omp 配置。`~/.omp-ctl/` 为唯一真实来源，
 web/                    React + TypeScript + Vite + Tailwind v4 前端（bun 管理依赖）
   src/
     styles/app.css      唯一样式入口：@import "tailwindcss" + @theme token + @layer base
-    lib/                ipc（Tauri 命令封装，读经 queryCache 做 30s SWR 缓存）、types（后端 DTO）、router、i18n、prefs、
-                        toast、hotkeys、format、cn（clsx+tailwind-merge）
+    lib/                ipc（Tauri 命令封装，读经 queryCache 做 30s SWR 缓存）、types（后端 DTO）、modelMeta（API/思考等级
+                        常量与 selector 拼接）、router、i18n、prefs、toast、hotkeys、format、cn（clsx+tailwind-merge）
     hooks/              useAsync（加载/错误/reload）、useApp（全局上下文）
     components/ui/      UI 原语（Button/Input/Dialog/CodeEditor/Tabs/...），纯 Tailwind
     components/shell/   AppShell、Sidebar、Header、CommandPalette、PageContainer
+    components/settings/ 设置页「omp-ctl」Tab 内容：DefaultsPanel（默认值）
+    components/roles/   模型角色页组件：PresetBar（预设切换/保存/删除）
     pages/              13 个路由页面（含 Backup 快照导出/导入）
 dist/                   `just web-build` 产物（gitignore，Tauri frontendDist）
 src-tauri/src/
-  lib.rs                Tauri 命令注册（46 个）+ SANDBOX_LOCK(cfg test)
+  lib.rs                Tauri 命令注册（52 个）+ SANDBOX_LOCK(cfg test)
   main.rs               3 行，调用 omp_ctl_lib::run()
   error.rs              AppError（serde tag="kind"）；Result<T, E = AppError>
-  paths.rs              home/store_dir/agent_dir 解析 + DirInfo/DirSource（agent_dir 经 OnceLock 进程内缓存，避免每命令起 omp 子进程）
+  paths.rs              home/store_dir/agent_dir 解析 + DirInfo/DirSource（agent_dir 经 OnceLock 进程内缓存，避免每命令起 omp 子进程；cfg(test) 不缓存）
   proc.rs               omp 子进程封装
   store.rs              链接状态、接管、还原、原子写、.links.json、快照导出/导入
   yaml.rs               YamlDoc：行区间 YAML 编辑，保留注释
   models.rs             Provider/ModelEntry、读写、探测、模型目录（`models/tests.rs`）、默认模型
   roles.rs              modelRoles / cycleOrder
+  defaults.rs           `~/.omp-ctl/defaults.yml`：新增模型/角色时套用的默认值（`defaults/tests.rs`）
+  presets.rs            `~/.omp-ctl/presets.yml`：整套 modelRoles + cycleOrder 命名预设，应用为整套替换（`presets/tests.rs`）
   config_edit.rs        config.yml 嵌套标量写入（`config_edit/tests.rs`）
   settings.rs           `omp config list --json` 目录（`settings/tests.rs`）
   prompts.rs            四个提示词文件的状态与开关
@@ -52,6 +56,9 @@ src-tauri/icons/         `cargo tauri icon` 生成的图标集（`bundle.icon` �
 * YAML 只做行区间替换（`yaml.rs`），不得整体重排文件。
 * 缩进探测用 `chars().take_while(' ')`，不要用 `len - trim_start_matches` 之差。
 * 测试若改动 `$HOME`/环境变量，必须持有 `crate::SANDBOX_LOCK`。
+* 默认值存 `~/.omp-ctl/defaults.yml`、预设存 `~/.omp-ctl/presets.yml`，均为 omp-ctl 自有功能，不写 `config.yml`（避免 omp 读到未知键），不进快照。默认值 UI 在「设置」页首个 Tab「omp-ctl」（`components/settings/`）；预设是 modelRoles+cycleOrder 的快照，UI 在「模型角色」页顶部工具条（`components/roles/PresetBar`），不单独占导航项。
+* 默认模型只由「模型」页维护（`modelRoles.default`）；「omp-ctl」Tab 不再重复提供该选择器。
+* 预设「应用」是整套替换语义：`config.yml` 中不在预设内的 `modelRoles.*` 键会被删除。
 * 无注释，除非 WHY 不明显（隐式约束、反直觉行为）。
 
 ## 命令

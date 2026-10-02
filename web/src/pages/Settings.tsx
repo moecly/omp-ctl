@@ -21,17 +21,16 @@ import {
 } from "../components/ui";
 import { PageError, PageSkeleton } from "../components/ui/PageState";
 import { PageContainer } from "../components/shell/PageContainer";
+import { DefaultsPanel } from "../components/settings/DefaultsPanel";
+
+const OMPCTL_TAB = "__ompctl";
 
 export function Settings() {
   const { t } = useApp();
   const catalog = useAsync<SettingsCatalog>(() => ipc.listSettings(), []);
-  const [tab, setTab] = useState("");
+  const [tab, setTab] = useState(OMPCTL_TAB);
   const [query, setQuery] = useState("");
   const [resetting, setResetting] = useState<SettingEntry | null>(null);
-
-  useEffect(() => {
-    if (catalog.data?.tabs.length && !tab) setTab(catalog.data.tabs[0]);
-  }, [catalog.data, tab]);
 
   const entries = catalog.data?.entries ?? [];
 
@@ -53,34 +52,7 @@ export function Settings() {
     }
   };
 
-  if (catalog.loading) {
-    return (
-      <PageContainer title={t.settings.title} description={t.pageDesc.settings.replace("{n}", "…")}>
-        <PageSkeleton rows={6} rowHeight={36} />
-      </PageContainer>
-    );
-  }
-
-  if (catalog.error) {
-    return (
-      <PageContainer
-        title={t.settings.title}
-        description={t.pageDesc.settings.replace("{n}", "…")}
-      >
-        <PageError message={catalog.error} onRetry={catalog.reload} />
-      </PageContainer>
-    );
-  }
-
-  if (!catalog.data?.tabs.length) {
-    return (
-      <PageContainer title={t.settings.title} description={t.pageDesc.settings.replace("{n}", "0")}>
-        <EmptyState title={t.common.empty} />
-      </PageContainer>
-    );
-  }
-
-  const tabs = catalog.data.tabs;
+  const tabs = [OMPCTL_TAB, ...(catalog.data?.tabs ?? [])];
 
   return (
     <PageContainer
@@ -110,26 +82,36 @@ export function Settings() {
                   : "text-[var(--color-fg-muted)] hover:bg-[var(--color-hover)] hover:text-[var(--color-fg)]",
               )}
             >
-              {id}
+              {id === OMPCTL_TAB ? t.settings.ompCtl : id}
             </button>
           ))}
         </div>
 
-        <div className="flex min-w-0 flex-1 flex-col gap-3">
-          <div className="max-w-[320px]">
-            <SearchInput value={query} onChange={setQuery} placeholder={t.common.search} />
+        {tab === OMPCTL_TAB ? (
+          <div className="flex min-w-0 flex-1 flex-col gap-5">
+            <DefaultsPanel />
           </div>
-
-          {filtered.length === 0 ? (
-            <EmptyState title={t.common.empty} />
-          ) : (
-            <div className="divide-y divide-[var(--color-border)]">
-              {filtered.map((entry) => (
-                <SettingRow key={entry.key} entry={entry} onSave={save} onReset={() => setResetting(entry)} />
-              ))}
+        ) : (
+          <div className="flex min-w-0 flex-1 flex-col gap-3">
+            <div className="max-w-[320px]">
+              <SearchInput value={query} onChange={setQuery} placeholder={t.common.search} />
             </div>
-          )}
-        </div>
+
+            {catalog.loading ? (
+              <PageSkeleton rows={6} rowHeight={36} />
+            ) : catalog.error ? (
+              <PageError message={catalog.error} onRetry={catalog.reload} />
+            ) : filtered.length === 0 ? (
+              <EmptyState title={t.common.empty} />
+            ) : (
+              <div className="divide-y divide-[var(--color-border)]">
+                {filtered.map((entry) => (
+                  <SettingRow key={entry.key} entry={entry} onSave={save} onReset={() => setResetting(entry)} />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <ConfirmDialog
