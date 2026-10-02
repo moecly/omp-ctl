@@ -172,6 +172,12 @@ export interface Defaults {
   backup: BackupSettings;
 }
 
+export interface Workspace {
+  name: string;
+  updatedAt: number;
+  active: boolean;
+}
+
 export interface Preset {
   name: string;
   roles: Record<string, string>;

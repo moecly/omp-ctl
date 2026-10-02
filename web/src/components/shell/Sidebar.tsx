@@ -5,6 +5,7 @@ import {
   FileText,
   Hexagon,
   Keyboard,
+  Layers,
   LayoutDashboard,
   PanelLeftClose,
   PanelLeftOpen,
@@ -41,6 +42,8 @@ const GROUP_CONFIG: NavItem[] = [
   { page: "prompts", key: "prompts", icon: FileText },
 ];
 
+const GROUP_WORKSPACES: NavItem[] = [{ page: "workspaces", key: "workspaces", icon: Layers }];
+
 const GROUP_RESOURCES: NavItem[] = [
   { page: "skills", key: "skills", icon: Sparkles },
   { page: "agents", key: "agents", icon: Bot },
@@ -57,7 +60,7 @@ const GROUP_SYSTEM: NavItem[] = [
   { page: "backup", key: "backup", icon: Save },
 ];
 
-export const NAV: NavItem[] = [...GROUP_CONFIG, ...GROUP_RESOURCES, ...GROUP_SYSTEM];
+export const NAV: NavItem[] = [...GROUP_CONFIG, ...GROUP_WORKSPACES, ...GROUP_RESOURCES, ...GROUP_SYSTEM];
 
 export function Sidebar({
   route,
@@ -74,6 +77,7 @@ export function Sidebar({
 
   const groups: { title: string; items: NavItem[] }[] = [
     { title: t.groups.config, items: GROUP_CONFIG },
+    { title: t.nav.workspaces, items: GROUP_WORKSPACES },
     { title: t.groups.resources, items: GROUP_RESOURCES },
     { title: t.groups.system, items: GROUP_SYSTEM },
   ];

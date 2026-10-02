@@ -18,6 +18,7 @@ import type {
   PromptState,
   Provider,
   ProviderSummary,
+  Workspace,
   ResourceEntry,
   ResourceId,
   SaveResult,
@@ -254,6 +255,37 @@ export const ipc = {
     return r;
   },
 
+  listWorkspaces: () => get("workspaces", () => invoke<Workspace[]>("list_workspaces")),
+  createWorkspace: async (name: string) => {
+    const r = await invoke<Workspace[]>("create_workspace", { name });
+    invalidate("workspaces");
+    return r;
+  },
+  saveWorkspace: async (name: string) => {
+    const r = await invoke<Workspace[]>("save_workspace", { name });
+    invalidate("workspaces");
+    return r;
+  },
+  deleteWorkspace: async (name: string) => {
+    const r = await invoke<Workspace[]>("delete_workspace", { name });
+    invalidate("workspaces");
+    return r;
+  },
+  applyWorkspace: async (name: string) => {
+    const r = await invoke<Workspace>("apply_workspace", { name });
+    invalidate("workspaces");
+    invalidate("overview");
+    invalidate("model-roles");
+    invalidate("providers");
+    invalidate("model-refs");
+    invalidate("prompts");
+    invalidate("prompt");
+    invalidate("mcp");
+    invalidate("resource");
+    invalidate("settings");
+    return r;
+  },
+
   listKeybindings: () => get("keybindings", () => invoke<KeybindingsState>("list_keybindings")),
   adoptKeybindings: async () => {
     const r = await invoke<KeybindingsState>("adopt_keybindings");
@@ -321,6 +353,9 @@ export function prefetchRoute(page: string, param?: string) {
       break;
     case "mcp":
       prefetch("mcp", () => invoke("list_mcp_servers"), TTL);
+      break;
+    case "workspaces":
+      prefetch("workspaces", () => invoke("list_workspaces"), TTL);
       break;
     case "keybindings":
       prefetch("keybindings", () => invoke("list_keybindings"), TTL);

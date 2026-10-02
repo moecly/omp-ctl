@@ -11,6 +11,7 @@ import { Memory } from "./pages/Memory";
 import { Keybindings } from "./pages/Keybindings";
 import { Settings } from "./pages/Settings";
 import { Backup } from "./pages/Backup";
+import { Workspaces } from "./pages/Workspaces";
 
 export function App() {
   return (
@@ -45,6 +46,8 @@ export function App() {
             return <Settings />;
           case "backup":
             return <Backup />;
+          case "workspaces":
+            return <Workspaces />;
           case "overview":
           default:
             return <Overview />;

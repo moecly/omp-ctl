@@ -20,6 +20,7 @@ export interface Strings {
     settings: string;
     extensions: string;
     backup: string;
+    workspaces: string;
   };
   common: {
     save: string;
@@ -101,6 +102,7 @@ export interface Strings {
     settings: string;
     backup: string;
     keybindings: string;
+    workspaces: string;
   };
   overview: {
     title: string;
@@ -286,6 +288,14 @@ export interface Strings {
     reveal: string;
     importConfirm: string;
   };
+  workspaces: {
+    title: string;
+    create: string;
+    namePlaceholder: string;
+    apply: string;
+    save: string;
+    unselected: string;
+  };
 }
 
 const zh: Strings = {
@@ -311,6 +321,7 @@ const zh: Strings = {
     settings: "设置",
     extensions: "扩展",
     backup: "备份迁移",
+    workspaces: "工作区",
   },
   common: {
     save: "保存",
@@ -392,6 +403,7 @@ const zh: Strings = {
     settings: "{n} 个配置项",
     backup: "store/backup/migrate-<ts>.tar.gz",
     keybindings: "~/.omp/agent/keybindings.yml",
+    workspaces: "~/.omp-ctl/workspaces/<name>/",
   },
   overview: {
     title: "总览",
@@ -577,6 +589,14 @@ const zh: Strings = {
     reveal: "打开备份目录",
     importConfirm: "确定从 {path} 导入？当前文件会被备份。",
   },
+  workspaces: {
+    title: "工作区",
+    create: "新建工作区",
+    namePlaceholder: "如 coding",
+    apply: "切换",
+    save: "保存当前到此区",
+    unselected: "未选中工作区，改动仅写当前配置",
+  },
 };
 
 const en: Strings = {
@@ -602,6 +622,7 @@ const en: Strings = {
     settings: "Settings",
     extensions: "Extensions",
     backup: "Backup",
+    workspaces: "Workspaces",
   },
   common: {
     save: "Save",
@@ -683,6 +704,7 @@ const en: Strings = {
     settings: "{n} keys",
     backup: "store/backup/migrate-<ts>.tar.gz",
     keybindings: "~/.omp/agent/keybindings.yml",
+    workspaces: "~/.omp-ctl/workspaces/<name>/",
   },
   overview: {
     title: "Overview",
@@ -867,6 +889,14 @@ const en: Strings = {
     pathPlaceholder: "~/.omp-ctl/store/backup/migrate-<ts>.tar.gz",
     reveal: "Reveal backup dir",
     importConfirm: "Import from {path}? Current files will be backed up.",
+  },
+  workspaces: {
+    title: "Workspaces",
+    create: "New workspace",
+    namePlaceholder: "e.g. coding",
+    apply: "Switch",
+    save: "Save current into this workspace",
+    unselected: "No workspace selected; edits apply to current config only",
   },
 };
 

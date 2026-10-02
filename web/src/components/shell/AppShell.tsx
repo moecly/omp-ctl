@@ -22,6 +22,9 @@ const PAGE_TITLES: Record<string, keyof Strings["nav"]> = {
   hooks: "hooks",
   tools: "tools",
   memory: "memory",
+  workspaces: "workspaces",
+  backup: "backup",
+  extensions: "extensions",
   keybindings: "keybindings",
   settings: "settings",
 };

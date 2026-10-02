@@ -17,6 +17,7 @@ mod resources;
 mod roles;
 mod settings;
 mod store;
+mod workspaces;
 mod yaml;
 
 pub mod harness;
@@ -154,7 +155,9 @@ fn catalog_models(provider: String) -> Result<Vec<CatalogModel>> {
 
 #[tauri::command]
 fn set_default_model(selector: String) -> Result<()> {
-    models::set_default_model(&selector)
+    let out = models::set_default_model(&selector);
+    if out.is_ok() { workspaces::sync_active_quiet(); }
+    out
 }
 
 #[tauri::command]
@@ -179,7 +182,9 @@ fn list_prompts() -> Result<Vec<PromptState>> {
 
 #[tauri::command]
 fn set_prompt_enabled(key: String, enabled: bool) -> Result<PromptState> {
-    prompts::set_enabled(&key, enabled)
+    let out = prompts::set_enabled(&key, enabled);
+    if out.is_ok() { workspaces::sync_active_quiet(); }
+    out
 }
 
 #[tauri::command]
@@ -189,12 +194,16 @@ fn read_prompt(key: String) -> Result<String> {
 
 #[tauri::command]
 fn write_prompt(key: String, content: String) -> Result<PromptState> {
-    prompts::write(&key, &content)
+    let out = prompts::write(&key, &content);
+    if out.is_ok() { workspaces::sync_active_quiet(); }
+    out
 }
 
 #[tauri::command]
 fn restore_prompt_backup(key: String) -> Result<PromptState> {
-    prompts::restore_backup(&key)
+    let out = prompts::restore_backup(&key);
+    if out.is_ok() { workspaces::sync_active_quiet(); }
+    out
 }
 
 #[tauri::command]
@@ -274,17 +283,23 @@ fn list_model_roles() -> Result<ModelRoles> {
 
 #[tauri::command]
 fn set_model_role(role: String, selector: String) -> Result<ModelRoles> {
-    roles::set_role(&role, &selector)
+    let out = roles::set_role(&role, &selector);
+    if out.is_ok() { workspaces::sync_active_quiet(); }
+    out
 }
 
 #[tauri::command]
 fn delete_model_role(role: String) -> Result<ModelRoles> {
-    roles::delete_role(&role)
+    let out = roles::delete_role(&role);
+    if out.is_ok() { workspaces::sync_active_quiet(); }
+    out
 }
 
 #[tauri::command]
 fn set_cycle_order(order: Vec<String>) -> Result<ModelRoles> {
-    roles::set_cycle_order(&order)
+    let out = roles::set_cycle_order(&order);
+    if out.is_ok() { workspaces::sync_active_quiet(); }
+    out
 }
 
 #[tauri::command]
@@ -302,49 +317,65 @@ fn read_resource(resource: String, name: String) -> Result<String> {
 #[tauri::command]
 fn write_resource(resource: String, name: String, content: String) -> Result<ResourceEntry> {
     let agent = paths::agent_dir()?;
-    resources::write(&agent, &resource, &name, &content)
+    let out = resources::write(&agent, &resource, &name, &content);
+    if out.is_ok() { workspaces::sync_active_quiet(); }
+    out
 }
 
 #[tauri::command]
 fn adopt_resource(resource: String, name: String) -> Result<ResourceEntry> {
     let agent = paths::agent_dir()?;
-    resources::adopt(&agent, &resource, &name)
+    let out = resources::adopt(&agent, &resource, &name);
+    if out.is_ok() { workspaces::sync_active_quiet(); }
+    out
 }
 
 #[tauri::command]
 fn delete_resource(resource: String, name: String) -> Result<()> {
     let agent = paths::agent_dir()?;
-    resources::remove(&agent, &resource, &name)
+    let out = resources::remove(&agent, &resource, &name);
+    if out.is_ok() { workspaces::sync_active_quiet(); }
+    out
 }
 
 #[tauri::command]
 fn set_resource_enabled(resource: String, name: String, enabled: bool) -> Result<ResourceEntry> {
     let agent = paths::agent_dir()?;
-    resources::set_enabled(&agent, &resource, &name, enabled)
+    let out = resources::set_enabled(&agent, &resource, &name, enabled);
+    if out.is_ok() { workspaces::sync_active_quiet(); }
+    out
 }
 
 #[tauri::command]
 fn restore_resource(resource: String, name: String) -> Result<ResourceEntry> {
     let agent = paths::agent_dir()?;
-    resources::restore(&agent, &resource, &name)
+    let out = resources::restore(&agent, &resource, &name);
+    if out.is_ok() { workspaces::sync_active_quiet(); }
+    out
 }
 
 #[tauri::command]
 fn unpack_bundled_agents() -> Result<Vec<ResourceEntry>> {
     let agent = paths::agent_dir()?;
-    resources::unpack_bundled_agents(&agent)
+    let out = resources::unpack_bundled_agents(&agent);
+    if out.is_ok() { workspaces::sync_active_quiet(); }
+    out
 }
 
 #[tauri::command]
 fn set_agent_model(name: String, selector: String) -> Result<ResourceEntry> {
     let agent = paths::agent_dir()?;
-    resources::set_agent_model(&agent, &name, &selector)
+    let out = resources::set_agent_model(&agent, &name, &selector);
+    if out.is_ok() { workspaces::sync_active_quiet(); }
+    out
 }
 
 #[tauri::command]
 fn restore_agent_default(name: String) -> Result<ResourceEntry> {
     let agent = paths::agent_dir()?;
-    resources::restore_agent_default(&agent, &name)
+    let out = resources::restore_agent_default(&agent, &name);
+    if out.is_ok() { workspaces::sync_active_quiet(); }
+    out
 }
 
 #[tauri::command]
@@ -389,19 +420,25 @@ fn list_mcp_servers() -> Result<Vec<McpServer>> {
 #[tauri::command]
 fn upsert_mcp_server(name: String, value: JValue) -> Result<McpServer> {
     let agent = paths::agent_dir()?;
-    mcp::upsert(&agent, &name, value)
+    let out = mcp::upsert(&agent, &name, value);
+    if out.is_ok() { workspaces::sync_active_quiet(); }
+    out
 }
 
 #[tauri::command]
 fn delete_mcp_server(name: String) -> Result<()> {
     let agent = paths::agent_dir()?;
-    mcp::remove(&agent, &name)
+    let out = mcp::remove(&agent, &name);
+    if out.is_ok() { workspaces::sync_active_quiet(); }
+    out
 }
 
 #[tauri::command]
 fn set_mcp_server_enabled(name: String, enabled: bool) -> Result<McpServer> {
     let agent = paths::agent_dir()?;
-    mcp::set_enabled(&agent, &name, enabled)
+    let out = mcp::set_enabled(&agent, &name, enabled);
+    if out.is_ok() { workspaces::sync_active_quiet(); }
+    out
 }
 
 #[tauri::command]
@@ -435,7 +472,33 @@ fn delete_preset(name: String) -> Result<Vec<PresetEntry>> {
 
 #[tauri::command]
 fn apply_preset(name: String) -> Result<ModelRoles> {
+    let _ = workspaces::clear_active();
     presets::apply(&name)
+}
+
+#[tauri::command]
+fn list_workspaces() -> Result<Vec<workspaces::WorkspaceEntry>> {
+    workspaces::list()
+}
+
+#[tauri::command]
+fn create_workspace(name: String) -> Result<Vec<workspaces::WorkspaceEntry>> {
+    workspaces::create(&name)
+}
+
+#[tauri::command]
+fn save_workspace(name: String) -> Result<Vec<workspaces::WorkspaceEntry>> {
+    workspaces::save(&name)
+}
+
+#[tauri::command]
+fn delete_workspace(name: String) -> Result<Vec<workspaces::WorkspaceEntry>> {
+    workspaces::delete(&name)
+}
+
+#[tauri::command]
+fn apply_workspace(name: String) -> Result<workspaces::WorkspaceEntry> {
+    workspaces::apply(&name)
 }
 
 #[tauri::command]
@@ -532,6 +595,11 @@ pub fn run() {
             set_keybinding,
             remove_keybinding,
             restore_keybindings_backup,
+            list_workspaces,
+            create_workspace,
+            save_workspace,
+            delete_workspace,
+            apply_workspace,
         ])
         .run(tauri::generate_context!())
         .expect("error while running omp-ctl");

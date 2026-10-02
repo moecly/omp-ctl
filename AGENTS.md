@@ -17,10 +17,10 @@ web/                    React + TypeScript + Vite + Tailwind v4 前端（bun 管
     components/shell/   AppShell、Sidebar、Header、CommandPalette、PageContainer
     components/settings/ 设置页「omp-ctl」Tab 内容：DefaultsPanel（默认值）
     components/roles/   模型角色页组件：PresetBar（预设选择/应用/保存/删除）
-    pages/              14 个路由页面（含 Backup 快照导出/导入、Keybindings 快捷键）
+    pages/              15 个路由页面（含 Backup 快照导出/导入、Keybindings 快捷键、Workspaces 工作区）
 dist/                   `just web-build` 产物（gitignore，Tauri frontendDist）
 src-tauri/src/
-  lib.rs                Tauri 命令注册（52 个）+ SANDBOX_LOCK(cfg test)
+  lib.rs                Tauri 命令注册（57 个：52 + 5 工作区）+ SANDBOX_LOCK(cfg test)
   main.rs               3 行，调用 omp_ctl_lib::run()
   error.rs              AppError（serde tag="kind"）；Result<T, E = AppError>
   paths.rs              home/store_dir/agent_dir 解析 + DirInfo/DirSource（agent_dir 经 OnceLock 进程内缓存，避免每命令起 omp 子进程；cfg(test) 不缓存）
@@ -31,7 +31,8 @@ src-tauri/src/
   models.rs             Provider/ModelEntry、读写、探测、模型目录（`models/tests.rs`）、默认模型
   roles.rs              modelRoles / cycleOrder
   defaults.rs           `~/.omp-ctl/defaults.yml`：新增模型/角色时套用的默认值 + 备份开关（`defaults/tests.rs`）
-  presets.rs            `~/.omp-ctl/presets.yml`：整套 modelRoles + cycleOrder 命名预设，应用为整套替换（`presets/tests.rs`）
+  presets.rs            `~/.omp-ctl/presets.yml`：整套 modelRoles + cycleOrder 命名预设，应用为整套替换（`presets/tests.rs`）；apply_preset 会清工作区 active 指针
+  workspaces.rs         `~/.omp-ctl/workspaces/<名>/`：MCP/六类资源/四提示词/roles+cycleOrder+disabledAgents 快照，切换即整套覆盖；选中后各变更命令尾 sync_active_quiet() 自动同步（`workspaces/tests.rs`）
   keybindings.rs        `~/.omp/agent/keybindings.yml` 的行区间编辑、接管/还原与按键校验（`keybindings/tests.rs`）
   config_edit.rs        config.yml 嵌套标量写入（`config_edit/tests.rs`）
   settings.rs           `omp config list --json` 目录（`settings/tests.rs`）
