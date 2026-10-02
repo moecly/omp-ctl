@@ -1,7 +1,7 @@
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 
-import { AppContext } from "../../hooks/useApp";
-import { loadLocale, loadSidebar, loadTheme, saveLocale, saveSidebar, saveTheme } from "../../lib/prefs";
+import { AppContext, type Theme, type ThemePref } from "../../hooks/useApp";
+import { loadLocale, loadSidebar, loadThemePref, saveLocale, saveSidebar, saveTheme } from "../../lib/prefs";
 import { LOCALES, type Locale, assertLocaleParity, strings, type Strings } from "../../lib/i18n";
 import { type Route, getRoute, navigate, subscribe } from "../../lib/router";
 import { install, register } from "../../lib/hotkeys";
@@ -22,6 +22,7 @@ const PAGE_TITLES: Record<string, keyof Strings["nav"]> = {
   hooks: "hooks",
   tools: "tools",
   memory: "memory",
+  keybindings: "keybindings",
   settings: "settings",
 };
 
@@ -35,19 +36,31 @@ export function AppShell({ children }: { children: (route: Route) => ReactNode }
     const stored = loadLocale();
     return stored === "en" || stored === "zh" ? stored : "zh";
   });
-  const [theme, setTheme] = useState<"dark" | "light">(() => (loadTheme() === "light" ? "light" : "dark"));
+  const [themePref, setThemePref] = useState<ThemePref>(() => loadThemePref());
+  const [systemLight, setSystemLight] = useState(
+    () => window.matchMedia("(prefers-color-scheme: light)").matches,
+  );
   const [route, setRoute] = useState(getRoute());
   const [collapsed, setCollapsed] = useState(() => loadSidebar());
   const [paletteOpen, setPaletteOpen] = useState(false);
 
   const t = useMemo(() => strings(locale), [locale]);
 
+  const theme: Theme = themePref === "auto" ? (systemLight ? "light" : "dark") : themePref;
+
   useEffect(() => subscribe(setRoute), []);
 
   useEffect(() => {
+    const mq = window.matchMedia("(prefers-color-scheme: light)");
+    const onChange = (e: MediaQueryListEvent) => setSystemLight(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
+  useEffect(() => {
     document.documentElement.dataset.theme = theme;
-    saveTheme(theme);
-  }, [theme]);
+    saveTheme(themePref);
+  }, [theme, themePref]);
 
   useEffect(() => {
     if (import.meta.env.DEV) assertLocaleParity();
@@ -88,11 +101,12 @@ export function AppShell({ children }: { children: (route: Route) => ReactNode }
       },
       t,
       theme,
-      toggleTheme: () => setTheme((v) => (v === "dark" ? "light" : "dark")),
+      themePref,
+      setThemePref,
       paletteOpen,
       setPaletteOpen,
     }),
-    [locale, t, theme, paletteOpen],
+    [locale, t, theme, themePref, paletteOpen],
   );
 
   return (

@@ -21,6 +21,8 @@
   --color-success-soft: rgba(34, 197, 94, 0.14);
   --color-warning-soft: rgba(234, 179, 8, 0.14);
   --color-danger-soft: rgba(239, 68, 68, 0.14);
+  --color-scrollbar-thumb: rgba(255, 255, 255, 0.1);
+  --color-scrollbar-thumb-hover: rgba(255, 255, 255, 0.18);
 
   --radius-sm: 5px;
   --radius-md: 7px;
@@ -45,6 +47,35 @@
 @layer base {
   :root {
     color-scheme: dark;
+  }
+
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --color-bg: #f4f4f5;
+    --color-surface: #ffffff;
+    --color-surface-2: #fafafa;
+    --color-hover: #e9e9ec;
+    --color-active: #dedee2;
+    --color-border: rgba(0, 0, 0, 0.08);
+    --color-border-strong: rgba(0, 0, 0, 0.16);
+    --color-fg: #18181b;
+    --color-fg-muted: #52525b;
+    --color-fg-subtle: #71717a;
+    --color-accent: #4f46e5;
+    --color-accent-hover: #4338ca;
+    --color-accent-fg: #ffffff;
+    --color-overlay: rgba(0, 0, 0, 0.35);
+    --color-success: #16a34a;
+    --color-warning: #a16207;
+    --color-danger: #dc2626;
+    --color-success-soft: rgba(22, 163, 74, 0.12);
+    --color-warning-soft: rgba(161, 98, 7, 0.12);
+    --color-danger-soft: rgba(220, 38, 38, 0.1);
+    --color-scrollbar-thumb: rgba(0, 0, 0, 0.16);
+    --color-scrollbar-thumb-hover: rgba(0, 0, 0, 0.3);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.08);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.16);
   }
 
   *,
@@ -81,14 +112,14 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--color-scrollbar-thumb);
     border-radius: 5px;
     border: 2px solid transparent;
     background-clip: content-box;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.18);
+    background: var(--color-scrollbar-thumb-hover);
     background-clip: content-box;
   }
 

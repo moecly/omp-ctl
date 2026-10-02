@@ -8,6 +8,7 @@ import { Resources } from "./pages/Resources";
 import { Mcp } from "./pages/Mcp";
 import { Tools } from "./pages/Tools";
 import { Memory } from "./pages/Memory";
+import { Keybindings } from "./pages/Keybindings";
 import { Settings } from "./pages/Settings";
 import { Backup } from "./pages/Backup";
 
@@ -38,6 +39,8 @@ export function App() {
             return <Tools />;
           case "memory":
             return <Memory />;
+          case "keybindings":
+            return <Keybindings />;
           case "settings":
             return <Settings />;
           case "backup":

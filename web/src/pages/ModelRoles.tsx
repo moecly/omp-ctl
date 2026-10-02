@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Check, Plus, RotateCcw, Trash2 } from "lucide-react";
 
 import { useApp } from "../hooks/useApp";
@@ -46,68 +46,102 @@ export function ModelRoles() {
   const [newSelector, setNewSelector] = useState("");
   const [newLevel, setNewLevel] = useState("");
   const [creating, setCreating] = useState(false);
-  const [cycle, setCycle] = useState("");
   const [deleting, setDeleting] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (roles.data) setCycle(roles.data.cycleOrder.join(", "));
-  }, [roles.data]);
+  // Selected preset is the live edit target: every change below writes back
+  // to both config.yml and the preset itself.
+  const [target, setTarget] = useState("");
+  const [applying, setApplying] = useState(false);
 
-  const selectors = (refs.data ?? []).map((r) => r.id);
+  const select = async (name: string) => {
+    setTarget(name);
+    if (!name || applying) return;
+    setApplying(true);
+    try {
+      await ipc.applyPreset(name);
+      toast.success(t.presets.applied, name);
+      roles.reload();
+    } catch (e) {
+      toast.error(t.presets.applied, errorText(e));
+    } finally {
+      setApplying(false);
+    }
+  };
+
+  const syncPreset = async (next: ModelRolesData) => {
+    if (!target) return;
+    try {
+      await ipc.savePreset(target, next.roles, next.cycleOrder);
+    } catch (e) {
+      toast.error(t.presets.saved, errorText(e));
+    }
+  };
+
+  const mutate = async (fn: () => Promise<ModelRolesData>, note: string) => {
+    try {
+      const next = await fn();
+      toast.success(t.common.save, note);
+      roles.reload();
+      await syncPreset(next);
+    } catch (e) {
+      toast.error(t.common.save, errorText(e));
+    }
+  };
 
   const create = async () => {
     if (!newRole.trim() || !newSelector.trim()) return;
-    try {
-      await ipc.setModelRole(newRole.trim(), joinSelector(newSelector.trim(), newLevel || defLevel));
-      toast.success(t.common.save, newRole.trim());
-      setNewRole("");
-      setNewSelector("");
-      setNewLevel("");
-      setCreating(false);
-      roles.reload();
-    } catch (e) {
-      toast.error(t.common.save, errorText(e));
-    }
+    const role = newRole.trim();
+    await mutate(
+      () => ipc.setModelRole(role, joinSelector(newSelector.trim(), newLevel || defLevel)),
+      role,
+    );
+    setNewRole("");
+    setNewSelector("");
+    setNewLevel("");
+    setCreating(false);
   };
 
   const update = async (role: string, selector: string) => {
-    try {
-      await ipc.setModelRole(role, selector);
-      toast.success(t.common.save, role);
-      roles.reload();
-    } catch (e) {
-      toast.error(t.common.save, errorText(e));
-    }
+    await mutate(() => ipc.setModelRole(role, selector), role);
   };
 
-  const saveCycle = async () => {
-    const order = cycle
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    try {
-      await ipc.setCycleOrder(order);
-      toast.success(t.roles.cycleOrder, order.join(" → "));
-      roles.reload();
-    } catch (e) {
-      toast.error(t.roles.cycleOrder, errorText(e));
-    }
+  // Cycle order is edited by toggling roles; unknown entries stay pinned red
+  // until removed so a typo or a deleted role can't silently vanish.
+  const toggleCycle = async (role: string) => {
+    const order = roles.data?.cycleOrder ?? [];
+    const next = order.includes(role) ? order.filter((r) => r !== role) : [...order, role];
+    await mutate(() => ipc.setCycleOrder(next), t.roles.cycleOrder);
   };
+
+  const dropStale = async (role: string) => {
+    const order = roles.data?.cycleOrder ?? [];
+    await mutate(
+      () => ipc.setCycleOrder(order.filter((r) => r !== role)),
+      t.roles.cycleOrder,
+    );
+  };
+
+  const confirmDelete = async () => {
+    const role = deleting!;
+    setDeleting(null);
+    await mutate(() => ipc.deleteModelRole(role), role);
+  };
+
+  const selectors = (refs.data ?? []).map((r) => r.id);
 
   const entries = Object.entries(roles.data?.roles ?? {});
-  const missing = KNOWN_ROLES.filter(([role]) => !(role in (roles.data?.roles ?? {})));
+  const roleNames = new Set(entries.map(([role]) => role));
+  const inCycle = new Set(roles.data?.cycleOrder ?? []);
+  const stale = (roles.data?.cycleOrder ?? []).filter((r) => !roleNames.has(r));
+  const missing = KNOWN_ROLES.filter(([role]) => !roleNames.has(role));
+
   const quickAdd = async (role: string) => {
     const selector = selectors[0] ?? Object.values(roles.data?.roles ?? {})[0] ?? "";
     if (!selector) return;
     const [m, l] = splitSelector(selector);
-    try {
-      await ipc.setModelRole(role, joinSelector(m, l || defLevel));
-      toast.success(t.common.save, role);
-      roles.reload();
-    } catch (e) {
-      toast.error(t.common.save, errorText(e));
-    }
+    await mutate(() => ipc.setModelRole(role, joinSelector(m, l || defLevel)), role);
   };
+
   return (
     <PageContainer
       title={t.roles.title}
@@ -131,7 +165,7 @@ export function ModelRoles() {
       {roles.error && <PageError message={roles.error} onRetry={roles.reload} />}
       {refs.error && <PageError message={refs.error} onRetry={refs.reload} />}
 
-      <PresetBar onApplied={roles.reload} />
+      <PresetBar target={target} onSelect={select} />
 
       {roles.loading ? (
         <PageSkeleton rows={4} />
@@ -159,11 +193,12 @@ export function ModelRoles() {
               <div className="flex min-w-0 flex-1 items-center gap-2">
                 <span className="text-[13px] font-medium text-[var(--color-fg)]">{role}</span>
                 {role === "default" && <Badge tone="accent">{t.common.default}</Badge>}
-                {roles.data?.cycleOrder.includes(role) && <Badge tone="accent">cycle</Badge>}
+                {inCycle.has(role) && <Badge tone="accent">cycle</Badge>}
               </div>
               <Select
                 className="w-[240px]"
                 value={selectors.includes(model) ? model : ""}
+                disabled={applying}
                 onChange={(e) => update(role, joinSelector(e.target.value, level))}
               >
                 {!selectors.includes(model) && <option value="">{model}</option>}
@@ -178,6 +213,7 @@ export function ModelRoles() {
                 aria-label={t.roles.thinkingLevel}
                 title={t.roles.thinkingLevel}
                 value={level}
+                disabled={applying}
                 onChange={(e) => update(role, joinSelector(model, e.target.value))}
               >
                 <option value="">{t.models.unset}</option>
@@ -216,25 +252,44 @@ export function ModelRoles() {
 
       <div className="flex flex-col gap-2">
         <div className="text-[11px] uppercase tracking-wide text-[var(--color-fg-subtle)]">{t.roles.cycleOrder}</div>
-        <Field hint={t.roles.cycleHint}>
-          <Input mono value={cycle} onChange={(e) => setCycle(e.target.value)} />
-        </Field>
-        <div className="flex items-center gap-2">
-          <Button size="sm" onClick={saveCycle}>
-            <Check size={14} />
-            {t.common.save}
-          </Button>
+        <div className="text-[12px] text-[var(--color-fg-muted)]">{t.roles.cycleHint}</div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {entries.map(([role]) => {
+            const on = inCycle.has(role);
+            return (
+              <Button
+                key={role}
+                size="sm"
+                variant={on ? "primary" : "ghost"}
+                title={t.roles.cycleToggle.replace("{role}", role)}
+                onClick={() => toggleCycle(role)}
+              >
+                {on && <Check size={14} />}
+                {role}
+              </Button>
+            );
+          })}
+          {stale.map((role) => (
+            <span key={role} title={t.roles.cycleStale.replace("{role}", role)}>
+              <Button size="sm" variant="danger" onClick={() => dropStale(role)}>
+                <Trash2 size={14} />
+                {role}
+              </Button>
+            </span>
+          ))}
+        </div>
+        {(roles.data?.cycleOrder.length ?? 0) > 0 && (
           <div className="flex flex-wrap items-center gap-1.5">
             {(roles.data?.cycleOrder ?? []).map((r, i) => (
               <span key={r} className="flex items-center gap-1.5">
-                <Badge tone="neutral">{r}</Badge>
+                <Badge tone={roleNames.has(r) ? "neutral" : "danger"}>{r}</Badge>
                 {i < (roles.data?.cycleOrder.length ?? 0) - 1 && (
                   <span className="text-[var(--color-fg-subtle)]">→</span>
                 )}
               </span>
             ))}
           </div>
-        </div>
+        )}
       </div>
 
       <Dialog
@@ -288,17 +343,7 @@ export function ModelRoles() {
         confirmLabel={t.common.delete}
         danger
         onCancel={() => setDeleting(null)}
-        onConfirm={async () => {
-          const role = deleting!;
-          setDeleting(null);
-          try {
-            await ipc.deleteModelRole(role);
-            toast.success(t.common.delete, role);
-            roles.reload();
-          } catch (e) {
-            toast.error(t.common.delete, errorText(e));
-          }
-        }}
+        onConfirm={confirmDelete}
       />
     </PageContainer>
   );

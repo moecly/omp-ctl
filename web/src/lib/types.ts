@@ -172,6 +172,27 @@ export interface Preset {
   cycleOrder: string[];
 }
 
+export interface BindingState {
+  action: string;
+  label: string | null;
+  defaultChords: string[];
+  chords: string[];
+  overridden: boolean;
+  disabled: boolean;
+  known: boolean;
+}
+
+export interface KeybindingsState {
+  file: string;
+  agentPath: string;
+  storePath: string;
+  link: LinkKind;
+  linkTarget: string | null;
+  storeExists: boolean;
+  hasBackup: boolean;
+  bindings: BindingState[];
+}
+
 export interface McpServer {
   name: string;
   enabled: boolean;

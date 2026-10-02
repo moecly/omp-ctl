@@ -10,11 +10,14 @@ export function saveLocale(v: string) {
   localStorage.setItem(KEY_LOCALE, v);
 }
 
-export function loadTheme(): string | null {
-  return localStorage.getItem(KEY_THEME);
+export type ThemePref = "dark" | "light" | "auto";
+
+export function loadThemePref(): ThemePref {
+  const v = localStorage.getItem(KEY_THEME);
+  return v === "dark" || v === "light" || v === "auto" ? v : "dark";
 }
 
-export function saveTheme(v: string) {
+export function saveTheme(v: ThemePref) {
   localStorage.setItem(KEY_THEME, v);
 }
 

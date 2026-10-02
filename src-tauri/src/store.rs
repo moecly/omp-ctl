@@ -391,6 +391,7 @@ fn snapshot_entries() -> Vec<String> {
         CONFIG.to_string(),
         MODELS.to_string(),
         crate::mcp::MCP_FILE.to_string(),
+        crate::keybindings::FILE.to_string(),
         META.to_string(),
     ];
     for name in MANAGED {

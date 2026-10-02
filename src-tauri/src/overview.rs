@@ -70,6 +70,7 @@ fn links_of(agent: &Path) -> Result<Vec<LinkStateRow>> {
     names.push(store::MODELS.to_string());
     names.push(store::CONFIG.to_string());
     names.push(mcp::MCP_FILE.to_string());
+    names.push(crate::keybindings::FILE.to_string());
     let mut out = Vec::new();
     for name in names {
         let state = store::link_state(agent, &name)?;

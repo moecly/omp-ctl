@@ -98,3 +98,15 @@ fn set_str_creates_missing_block() {
     assert!(out.contains("  review: axon/three"));
     assert!(out.contains("composer:"));
 }
+
+#[test]
+fn set_raw_replaces_stale_empty_key() {
+    let sb = Sandbox::new("stale-empty");
+    sb.write_config("modelRoles:\n  default: axon/one\ncycleOrder:\n  []\n");
+    super::set_raw(&["cycleOrder"], "[]").unwrap();
+    let out = sb.read_config();
+    assert!(out.contains("cycleOrder: []\n"), "{out}");
+    assert!(!out.contains("\n  []"), "{out}");
+    let v: serde_yaml::Value = serde_yaml::from_str(&out).unwrap();
+    assert!(v.get("cycleOrder").unwrap().as_sequence().unwrap().is_empty());
+}

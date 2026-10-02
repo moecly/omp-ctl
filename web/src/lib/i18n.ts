@@ -16,6 +16,7 @@ export interface Strings {
     hooks: string;
     tools: string;
     memory: string;
+    keybindings: string;
     settings: string;
     extensions: string;
     backup: string;
@@ -73,7 +74,10 @@ export interface Strings {
     commandPaletteHint: string;
     toggleSidebar: string;
     navigate: string;
-    toggleTheme: string;
+    theme: string;
+    themeDark: string;
+    themeLight: string;
+    themeAuto: string;
     language: string;
     searchPlaceholder: string;
     noResults: string;
@@ -96,6 +100,7 @@ export interface Strings {
     memory: string;
     settings: string;
     backup: string;
+    keybindings: string;
   };
   overview: {
     title: string;
@@ -157,6 +162,8 @@ export interface Strings {
     add: string;
     cycleOrder: string;
     cycleHint: string;
+    cycleToggle: string;
+    cycleStale: string;
     deleteConfirm: string;
     selectorHint: string;
     quickAdd: string;
@@ -178,8 +185,8 @@ export interface Strings {
   };
   presets: {
     title: string;
+    select: string;
     captureCurrent: string;
-    overwrite: string;
     deleteConfirm: string;
     namePrompt: string;
     empty: string;
@@ -238,6 +245,21 @@ export interface Strings {
     backend: string;
     hint: string;
   };
+  keybindings: {
+    title: string;
+    action: string;
+    unknownAction: string;
+    addAction: string;
+    actionId: string;
+    edit: string;
+    recordHint: string;
+    saveHint: string;
+    disabled: string;
+    overridden: string;
+    reset: string;
+    adopt: string;
+    adoptHint: string;
+  };
   settings: {
     title: string;
     ompCtl: string;
@@ -280,6 +302,7 @@ const zh: Strings = {
     hooks: "钩子",
     tools: "工具",
     memory: "记忆",
+    keybindings: "快捷键",
     settings: "设置",
     extensions: "扩展",
     backup: "备份迁移",
@@ -337,7 +360,10 @@ const zh: Strings = {
     commandPaletteHint: "搜索页面与操作",
     toggleSidebar: "切换侧栏",
     navigate: "跳转",
-    toggleTheme: "切换主题",
+    theme: "主题",
+    themeDark: "深色",
+    themeLight: "浅色",
+    themeAuto: "跟随系统",
     language: "语言",
     searchPlaceholder: "搜索页面与操作…",
     noResults: "无匹配结果",
@@ -360,6 +386,7 @@ const zh: Strings = {
     memory: "memory.backend",
     settings: "{n} 个配置项",
     backup: "store/backup/migrate-<ts>.tar.gz",
+    keybindings: "~/.omp/agent/keybindings.yml",
   },
   overview: {
     title: "总览",
@@ -420,7 +447,9 @@ const zh: Strings = {
     title: "模型角色",
     add: "新增角色",
     cycleOrder: "循环顺序",
-    cycleHint: "用逗号分隔角色名，决定切换模型的顺序",
+    cycleHint: "点选角色加入顺序，无效项标红，点红项可移除",
+    cycleToggle: "点击切换 {role} 是否参与循环",
+    cycleStale: "{role} 已不在角色列表中，点击移除",
     deleteConfirm: "确定删除角色 {role}？",
     selectorHint: "形如 provider/model，可带 :off 等后缀",
     quickAdd: "常用角色快捷添加",
@@ -442,8 +471,8 @@ const zh: Strings = {
   },
   presets: {
     title: "预设",
+    select: "选择预设…",
     captureCurrent: "以当前配置新建",
-    overwrite: "用当前配置覆盖",
     deleteConfirm: "删除预设 {name}？",
     namePrompt: "预设名称",
     empty: "还没有预设",
@@ -502,6 +531,21 @@ const zh: Strings = {
     backend: "记忆后端",
     hint: "对应设置项 memory.backend；off 表示关闭。",
   },
+  keybindings: {
+    title: "快捷键",
+    action: "按键",
+    unknownAction: "未知 action",
+    addAction: "添加绑定",
+    actionId: "Action ID",
+    edit: "编辑",
+    recordHint: "点击此处后按下组合键进行录制",
+    saveHint: "空列表表示禁用该 action",
+    disabled: "已禁用",
+    overridden: "已覆盖",
+    reset: "恢复默认",
+    adopt: "接管",
+    adoptHint: "接管 keybindings.yml 后即可编辑",
+  },
   settings: {
     title: "设置",
     ompCtl: "omp-ctl",
@@ -544,6 +588,7 @@ const en: Strings = {
     hooks: "Hooks",
     tools: "Tools",
     memory: "Memory",
+    keybindings: "Keybindings",
     settings: "Settings",
     extensions: "Extensions",
     backup: "Backup",
@@ -601,7 +646,10 @@ const en: Strings = {
     commandPaletteHint: "Search pages and actions",
     toggleSidebar: "Toggle sidebar",
     navigate: "Go to",
-    toggleTheme: "Toggle theme",
+    theme: "Theme",
+    themeDark: "Dark",
+    themeLight: "Light",
+    themeAuto: "System",
     language: "Language",
     searchPlaceholder: "Search pages and actions…",
     noResults: "No results",
@@ -624,6 +672,7 @@ const en: Strings = {
     memory: "memory.backend",
     settings: "{n} keys",
     backup: "store/backup/migrate-<ts>.tar.gz",
+    keybindings: "~/.omp/agent/keybindings.yml",
   },
   overview: {
     title: "Overview",
@@ -684,7 +733,9 @@ const en: Strings = {
     title: "Model Roles",
     add: "New role",
     cycleOrder: "Cycle order",
-    cycleHint: "Comma-separated role names, in model-cycling order",
+    cycleHint: "Click roles to build the order; invalid entries show red, click to remove",
+    cycleToggle: "Toggle {role} in the cycle",
+    cycleStale: "{role} is no longer a role, click to remove",
     deleteConfirm: "Delete role {role}?",
     selectorHint: "provider/model, optional :suffix",
     quickAdd: "Quick-add common roles",
@@ -706,8 +757,8 @@ const en: Strings = {
   },
   presets: {
     title: "Presets",
+    select: "Select a preset…",
     captureCurrent: "Capture current",
-    overwrite: "Overwrite with current",
     deleteConfirm: "Delete preset {name}?",
     namePrompt: "Preset name",
     empty: "No presets yet",
@@ -765,6 +816,21 @@ const en: Strings = {
     title: "Memory",
     backend: "Memory backend",
     hint: "Maps to setting memory.backend; off disables it.",
+  },
+  keybindings: {
+    title: "Keybindings",
+    action: "Bindings",
+    unknownAction: "Unknown action",
+    addAction: "Add binding",
+    actionId: "Action ID",
+    edit: "Edit",
+    recordHint: "Focus here, then press the key combination to record",
+    saveHint: "An empty list disables the action",
+    disabled: "Disabled",
+    overridden: "Overridden",
+    reset: "Reset",
+    adopt: "Adopt",
+    adoptHint: "Adopt keybindings.yml to enable editing",
   },
   settings: {
     title: "Settings",

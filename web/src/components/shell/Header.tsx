@@ -1,4 +1,4 @@
-import { Moon, Search, Sun } from "lucide-react";
+import { Monitor, Moon, Search, Sun } from "lucide-react";
 
 import { useApp } from "../../hooks/useApp";
 import type { Route } from "../../lib/router";
@@ -6,7 +6,9 @@ import { pageTitle } from "./AppShell";
 import { Button, IconButton, Kbd } from "../ui";
 
 export function Header({ route, onOpenPalette }: { route: Route; onOpenPalette: () => void }) {
-  const { t, theme, toggleTheme, locale, setLocale } = useApp();
+  const { t, themePref, setThemePref, locale, setLocale } = useApp();
+  const themeLabel =
+    themePref === "auto" ? t.shell.themeAuto : themePref === "light" ? t.shell.themeLight : t.shell.themeDark;
 
   return (
     <header className="flex h-[52px] shrink-0 items-center gap-2 border-b border-[var(--color-border)] bg-[var(--color-bg)] px-4">
@@ -25,8 +27,11 @@ export function Header({ route, onOpenPalette }: { route: Route; onOpenPalette: 
         <Button size="sm" variant="ghost" onClick={() => setLocale(locale === "zh" ? "en" : "zh")}>
           {locale === "zh" ? "中" : "EN"}
         </Button>
-        <IconButton label={t.shell.toggleTheme} onClick={toggleTheme}>
-          {theme === "dark" ? <Moon size={15} /> : <Sun size={15} />}
+        <IconButton
+          label={`${t.shell.theme}: ${themeLabel}`}
+          onClick={() => setThemePref(themePref === "dark" ? "light" : themePref === "light" ? "auto" : "dark")}
+        >
+          {themePref === "auto" ? <Monitor size={15} /> : themePref === "light" ? <Sun size={15} /> : <Moon size={15} />}
         </IconButton>
       </div>
     </header>

@@ -8,6 +8,7 @@ import type {
   DirInfo,
   DiscoveredSkill,
   Json,
+  KeybindingsState,
   LinkState,
   McpServer,
   ModelRef,
@@ -252,6 +253,40 @@ export const ipc = {
     invalidate("overview");
     return r;
   },
+
+  listKeybindings: () => get("keybindings", () => invoke<KeybindingsState>("list_keybindings")),
+  adoptKeybindings: async () => {
+    const r = await invoke<KeybindingsState>("adopt_keybindings");
+    invalidate("keybindings");
+    invalidate("links");
+    invalidate("overview");
+    return r;
+  },
+  detachKeybindings: async () => {
+    const r = await invoke<KeybindingsState>("detach_keybindings");
+    invalidate("keybindings");
+    invalidate("links");
+    invalidate("overview");
+    return r;
+  },
+  setKeybinding: async (action: string, chords: string[]) => {
+    const r = await invoke<KeybindingsState>("set_keybinding", { action, chords });
+    invalidate("keybindings");
+    invalidate("overview");
+    return r;
+  },
+  removeKeybinding: async (action: string) => {
+    const r = await invoke<KeybindingsState>("remove_keybinding", { action });
+    invalidate("keybindings");
+    invalidate("overview");
+    return r;
+  },
+  restoreKeybindingsBackup: async () => {
+    const r = await invoke<KeybindingsState>("restore_keybindings_backup");
+    invalidate("keybindings");
+    invalidate("overview");
+    return r;
+  },
 };
 
 export function prefetchRoute(page: string, param?: string) {
@@ -286,6 +321,9 @@ export function prefetchRoute(page: string, param?: string) {
       break;
     case "mcp":
       prefetch("mcp", () => invoke("list_mcp_servers"), TTL);
+      break;
+    case "keybindings":
+      prefetch("keybindings", () => invoke("list_keybindings"), TTL);
       break;
     case "tools":
       prefetch("builtin-tools", () => invoke("list_builtin_tools"), TTL);

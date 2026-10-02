@@ -73,6 +73,16 @@ fn delete_role_removes_only_that_role() {
 }
 
 #[test]
+fn delete_role_prunes_cycle_order() {
+    let sb = Sandbox::new("delete-cycle");
+    fs::write(sb.root.join(".omp-ctl/config.yml"), SAMPLE).unwrap();
+    set_cycle_order(&["default".into(), "slow".into()]).unwrap();
+    let roles = delete_role("slow").unwrap();
+    assert!(!roles.roles.contains_key("slow"));
+    assert_eq!(roles.cycle_order, vec!["default"]);
+}
+
+#[test]
 fn cycle_order_round_trips() {
     let sb = Sandbox::new("cycle");
     fs::write(sb.root.join(".omp-ctl/config.yml"), SAMPLE).unwrap();

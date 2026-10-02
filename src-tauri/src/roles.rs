@@ -70,7 +70,12 @@ pub fn set_role(role: &str, selector: &str) -> Result<ModelRoles> {
 pub fn delete_role(role: &str) -> Result<ModelRoles> {
     let role = validate_role(role)?;
     config_edit::remove_path(&["modelRoles", &role])?;
-    list()
+    let current = list()?;
+    if current.cycle_order.iter().any(|r| r == &role) {
+        let kept: Vec<String> = current.cycle_order.into_iter().filter(|r| r != &role).collect();
+        return set_cycle_order(&kept);
+    }
+    Ok(current)
 }
 
 pub fn set_cycle_order(order: &[String]) -> Result<ModelRoles> {

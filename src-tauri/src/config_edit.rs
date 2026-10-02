@@ -54,6 +54,8 @@ pub fn set_raw(path: &[&str], raw: &str) -> Result<()> {
             Some(idx) => {
                 if last {
                     lines[idx] = format!("{}{key}: {raw}", " ".repeat(indent));
+                    let end = section_end(&lines, idx);
+                    lines.drain(idx + 1..end);
                     return finish(&file, &lines);
                 }
                 insert_at = section_end(&lines, idx);

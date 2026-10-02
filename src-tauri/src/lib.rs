@@ -4,6 +4,7 @@ pub(crate) static SANDBOX_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(())
 mod config_edit;
 mod defaults;
 pub mod error;
+mod keybindings;
 mod mcp;
 mod models;
 mod overview;
@@ -27,6 +28,7 @@ use serde_json::Value as JValue;
 
 use crate::defaults::Defaults;
 use crate::error::{AppError, Result};
+use crate::keybindings::KeybindingsState;
 use crate::mcp::McpServer;
 use crate::models::{CatalogModel, ModelRef, Provider, ProviderSummary};
 use crate::overview::Overview;
@@ -226,6 +228,7 @@ fn link_states() -> Result<Vec<JValue>> {
     let mut names: Vec<&str> = store::MANAGED.to_vec();
     names.push(store::MODELS);
     names.push(store::CONFIG);
+    names.push(keybindings::FILE);
     names
         .into_iter()
         .map(|name| {
@@ -434,6 +437,36 @@ fn apply_preset(name: String) -> Result<ModelRoles> {
     presets::apply(&name)
 }
 
+#[tauri::command]
+fn list_keybindings() -> Result<KeybindingsState> {
+    keybindings::state()
+}
+
+#[tauri::command]
+fn adopt_keybindings() -> Result<KeybindingsState> {
+    keybindings::adopt()
+}
+
+#[tauri::command]
+fn detach_keybindings() -> Result<KeybindingsState> {
+    keybindings::detach()
+}
+
+#[tauri::command]
+fn set_keybinding(action: String, chords: Vec<String>) -> Result<KeybindingsState> {
+    keybindings::set(&action, chords)
+}
+
+#[tauri::command]
+fn remove_keybinding(action: String) -> Result<KeybindingsState> {
+    keybindings::remove(&action)
+}
+
+#[tauri::command]
+fn restore_keybindings_backup() -> Result<KeybindingsState> {
+    keybindings::restore_backup()
+}
+
 pub fn run() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
@@ -492,6 +525,12 @@ pub fn run() {
             save_preset,
             delete_preset,
             apply_preset,
+            list_keybindings,
+            adopt_keybindings,
+            detach_keybindings,
+            set_keybinding,
+            remove_keybinding,
+            restore_keybindings_backup,
         ])
         .run(tauri::generate_context!())
         .expect("error while running omp-ctl");

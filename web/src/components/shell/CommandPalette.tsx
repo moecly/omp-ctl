@@ -18,18 +18,21 @@ const PAGES: { page: string; key: keyof Strings["nav"] }[] = [
   { page: "hooks", key: "hooks" },
   { page: "tools", key: "tools" },
   { page: "memory", key: "memory" },
+  { page: "keybindings", key: "keybindings" },
   { page: "settings", key: "settings" },
   { page: "backup", key: "backup" },
 ];
 
 export function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { t, locale, setLocale, toggleTheme } = useApp();
+  const { t, locale, setLocale, setThemePref } = useApp();
   const [query, setQuery] = useState("");
   const [cursor, setCursor] = useState(0);
 
   const results = useMemo(() => {
     const actions = [
-      { id: "action:theme", label: t.shell.toggleTheme, group: t.shell.shortcuts, run: toggleTheme },
+      { id: "theme:dark", label: `${t.shell.theme}: ${t.shell.themeDark}`, group: t.shell.shortcuts, run: () => setThemePref("dark") },
+      { id: "theme:light", label: `${t.shell.theme}: ${t.shell.themeLight}`, group: t.shell.shortcuts, run: () => setThemePref("light") },
+      { id: "theme:auto", label: `${t.shell.theme}: ${t.shell.themeAuto}`, group: t.shell.shortcuts, run: () => setThemePref("auto") },
       {
         id: "action:lang",
         label: `${t.shell.language}: ${locale === "zh" ? "English" : "中文"}`,
@@ -45,7 +48,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     ];
     const q = query.trim().toLowerCase();
     return q ? actions.filter((a) => a.label.toLowerCase().includes(q)) : actions;
-  }, [query, t, locale, setLocale, toggleTheme]);
+  }, [query, t, locale, setLocale, setThemePref]);
 
   useEffect(() => {
     if (open) {

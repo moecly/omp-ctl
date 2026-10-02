@@ -8,6 +8,7 @@ use serde_json::Value as JValue;
 
 use crate::defaults::Defaults;
 use crate::error::{AppError, Result};
+use crate::keybindings::KeybindingsState;
 use crate::mcp::McpServer;
 use crate::models::{Provider, ProviderSummary};
 use crate::overview::Overview;
@@ -28,6 +29,7 @@ pub fn link_states() -> Result<Vec<JValue>> {
     let mut names: Vec<&str> = store::MANAGED.to_vec();
     names.push(store::MODELS);
     names.push(store::CONFIG);
+    names.push(crate::keybindings::FILE);
     names
         .into_iter()
         .map(|name| {
@@ -290,4 +292,16 @@ pub fn delete_preset(name: String) -> Result<Vec<PresetEntry>> {
 
 pub fn apply_preset(name: String) -> Result<ModelRoles> {
     presets::apply(&name)
+}
+
+pub fn keybindings() -> Result<KeybindingsState> {
+    crate::keybindings::state()
+}
+
+pub fn set_keybinding(action: String, chords: Vec<String>) -> Result<KeybindingsState> {
+    crate::keybindings::set(&action, chords)
+}
+
+pub fn remove_keybinding(action: String) -> Result<KeybindingsState> {
+    crate::keybindings::remove(&action)
 }

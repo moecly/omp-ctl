@@ -4,6 +4,7 @@ import {
   Brain,
   FileText,
   Hexagon,
+  Keyboard,
   LayoutDashboard,
   PanelLeftClose,
   PanelLeftOpen,
@@ -51,6 +52,7 @@ const GROUP_RESOURCES: NavItem[] = [
 
 const GROUP_SYSTEM: NavItem[] = [
   { page: "memory", key: "memory", icon: Brain },
+  { page: "keybindings", key: "keybindings", icon: Keyboard },
   { page: "settings", key: "settings", icon: Settings },
   { page: "backup", key: "backup", icon: Save },
 ];

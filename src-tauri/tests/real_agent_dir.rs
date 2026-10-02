@@ -107,3 +107,15 @@ fn settings_catalog_has_all_tabs() {
         assert!(!entry.ty.is_empty());
     }
 }
+
+#[test]
+fn keybindings_parse_real_file() {
+    if !real_agent_dir_available() {
+        eprintln!("skipping: no agent directory resolvable");
+        return;
+    }
+    let state = harness::keybindings().unwrap();
+    for b in &state.bindings {
+        assert!(!b.action.is_empty());
+    }
+}
