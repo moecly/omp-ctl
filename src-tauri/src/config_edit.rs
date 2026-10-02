@@ -151,7 +151,7 @@ fn finish(file: &Path, lines: &[String]) -> Result<()> {
         text.push('\n');
     }
     if file.exists() {
-        store::backup_file(file)?;
+        let _ = store::backup_file(file)?;
     }
     store::write_atomic(file, text.as_bytes())
 }

@@ -253,7 +253,7 @@ impl YamlDoc {
 
     pub fn save(&self, path: &Path) -> Result<Option<std::path::PathBuf>> {
         let backup = if path.exists() {
-            Some(store::backup_file(path)?)
+            store::backup_file(path)?
         } else {
             None
         };

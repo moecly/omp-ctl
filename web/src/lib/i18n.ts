@@ -182,6 +182,11 @@ export interface Strings {
     reasoning: string;
     imageInput: string;
     save: string;
+    backupTitle: string;
+    backupEnabled: string;
+    backupEnabledHint: string;
+    backupKeep: string;
+    backupKeepHint: string;
   };
   presets: {
     title: string;
@@ -468,6 +473,11 @@ const zh: Strings = {
     reasoning: "推理模型",
     imageInput: "支持图片",
     save: "保存默认值",
+    backupTitle: "备份",
+    backupEnabled: "启用写前备份（默认关闭）",
+    backupEnabledHint: "关闭后不再产生 .bak.* 文件，已有备份保留不动",
+    backupKeep: "保留数量",
+    backupKeepHint: "每次写入后仅保留最新的 N 个备份（1–100，默认 5）",
   },
   presets: {
     title: "预设",
@@ -754,6 +764,11 @@ const en: Strings = {
     reasoning: "Reasoning model",
     imageInput: "Image input",
     save: "Save defaults",
+    backupTitle: "Backups",
+    backupEnabled: "Enable pre-write backups (off by default)",
+    backupEnabledHint: "When off, no new .bak.* files are created; existing ones are kept",
+    backupKeep: "Keep count",
+    backupKeepHint: "Only the newest N backups are kept after each write (1–100, default 5)",
   },
   presets: {
     title: "Presets",

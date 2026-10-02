@@ -54,6 +54,7 @@ fn write_read_round_trips() {
             thinking_level: Some("medium".into()),
         },
         role_thinking_level: Some("low".into()),
+        ..Default::default()
     };
     let back = write(&d).unwrap();
     assert_eq!(back, d);
@@ -69,10 +70,51 @@ fn scalar_fields_survive_yaml_round_trip() {
             ..Default::default()
         },
         role_thinking_level: Some("xhigh".into()),
+        ..Default::default()
     };
     write(&d).unwrap();
     let text = fs::read_to_string(sb.root.join(".omp-ctl/defaults.yml")).unwrap();
     assert!(text.contains("contextWindow: 123456"));
     assert!(text.contains("roleThinkingLevel: xhigh"));
     assert_eq!(read().unwrap(), d);
+}
+
+#[test]
+fn missing_file_backup_defaults_off() {
+    let _sb = Sandbox::new("backup-missing");
+    assert_eq!(
+        read().unwrap().backup,
+        BackupSettings {
+            enabled: false,
+            keep: 5
+        }
+    );
+}
+
+#[test]
+fn legacy_file_without_backup_key_parses() {
+    let sb = Sandbox::new("backup-legacy");
+    fs::write(
+        sb.root.join(".omp-ctl/defaults.yml"),
+        "model:\n  reasoning: true\n",
+    )
+    .unwrap();
+    assert_eq!(read().unwrap().backup, BackupSettings::default());
+}
+
+#[test]
+fn backup_settings_round_trip() {
+    let sb = Sandbox::new("backup-roundtrip");
+    let d = Defaults {
+        backup: BackupSettings {
+            enabled: true,
+            keep: 3,
+        },
+        ..Default::default()
+    };
+    let back = write(&d).unwrap();
+    assert_eq!(back.backup, d.backup);
+    assert_eq!(read().unwrap().backup, d.backup);
+    let text = fs::read_to_string(sb.root.join(".omp-ctl/defaults.yml")).unwrap();
+    assert!(text.contains("keep: 3"));
 }

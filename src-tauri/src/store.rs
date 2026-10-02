@@ -373,8 +373,13 @@ pub fn store_file(name: &str) -> Result<PathBuf> {
     Ok(paths::store_dir()?.join(name))
 }
 
-/// Copy `<path>` to `<path>.bak.<ts>` and return the backup path.
-pub fn backup_file(path: &Path) -> Result<PathBuf> {
+/// Copy `<path>` to `<path>.bak.<ts>` and return the backup path, or `None` when backups are disabled.
+pub fn backup_file(path: &Path) -> Result<Option<PathBuf>> {
+    let cfg = crate::backup::load();
+    if !cfg.enabled {
+        return Ok(None);
+    }
+    crate::backup::prune_siblings(path, cfg.keep.saturating_sub(1));
     let ts = now_ts();
     let mut candidate = PathBuf::from(format!("{}.bak.{ts}", path.display()));
     let mut n = 1;
@@ -383,7 +388,7 @@ pub fn backup_file(path: &Path) -> Result<PathBuf> {
         n += 1;
     }
     fs::copy(path, &candidate).map_err(|e| AppError::fs(path, e.to_string()))?;
-    Ok(candidate)
+    Ok(Some(candidate))
 }
 
 fn snapshot_entries() -> Vec<String> {
@@ -504,7 +509,7 @@ pub fn import_snapshot(path: &Path) -> Result<()> {
                 copy_dir_all(&src, &dst)?;
             } else {
                 if dst.is_file() {
-                    backup_file(&dst)?;
+                    let _ = backup_file(&dst)?;
                 }
                 let bytes = fs::read(&src).map_err(|e| AppError::fs(&src, e.to_string()))?;
                 write_atomic(&dst, &bytes)?;
@@ -534,7 +539,7 @@ pub fn import_snapshot(path: &Path) -> Result<()> {
                     fs::rename(&agent_path, &bak).map_err(|e| AppError::fs(&agent_path, e.to_string()))?;
                 }
                 Ok(_) => {
-                    backup_file(&agent_path)?;
+                    let _ = backup_file(&agent_path)?;
                     fs::remove_file(&agent_path).map_err(|e| AppError::fs(&agent_path, e.to_string()))?;
                 }
                 Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}

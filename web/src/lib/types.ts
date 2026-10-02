@@ -161,9 +161,15 @@ export interface ModelDefaults {
   thinkingLevel?: string;
 }
 
+export interface BackupSettings {
+  enabled: boolean;
+  keep: number;
+}
+
 export interface Defaults {
   model: ModelDefaults;
   roleThinkingLevel?: string;
+  backup: BackupSettings;
 }
 
 export interface Preset {

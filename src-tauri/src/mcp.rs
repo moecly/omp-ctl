@@ -111,7 +111,7 @@ fn write_root(agent: &Path, root: &Map<String, JValue>) -> Result<()> {
         resolve(agent)?
     };
     if path.exists() {
-        store::backup_file(&path)?;
+        let _ = store::backup_file(&path)?;
     }
     let text = serde_json::to_string_pretty(&JValue::Object(root.clone()))?;
     store::write_atomic(&path, format!("{text}\n").as_bytes())

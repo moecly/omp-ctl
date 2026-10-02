@@ -195,9 +195,9 @@ fn rejects_invalid_yaml_without_writing() {
 #[test]
 fn save_creates_bak() {
     let sb = Sandbox::new("bak");
+    fs::write(sb.root.join(".omp-ctl/defaults.yml"), "backup:\n  enabled: true\n  keep: 5\n").unwrap();
     fs::write(sb.file(), SAMPLE).unwrap();
     let before = fs::read(sb.file()).unwrap();
-
     let mut doc = YamlDoc::load(&sb.file()).unwrap();
     let mut v = doc.get("axon").unwrap();
     v["apiKey"] = json!("rotated");

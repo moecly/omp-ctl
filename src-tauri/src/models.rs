@@ -538,7 +538,7 @@ pub fn rewrite_default_roles(old_id: &str, new_id: &str) -> Result<Vec<String>> 
         let text = serde_yaml::to_string(&root)
             .map_err(|e| AppError::internal(format!("cannot serialize config.yml: {e}")))?;
         let path = store::store_file(store::CONFIG)?;
-        store::backup_file(&path)?;
+        let _ = store::backup_file(&path)?;
         store::write_atomic(&path, text.as_bytes())?;
     }
     Ok(changed)

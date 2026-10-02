@@ -5,7 +5,7 @@ import { useApp } from "../../hooks/useApp";
 import { useAsync } from "../../hooks/useAsync";
 import { ipc } from "../../lib/ipc";
 import { API_PRESETS, THINKING_LEVELS } from "../../lib/modelMeta";
-import { errorText, type Defaults as DefaultsData, type ModelDefaults } from "../../lib/types";
+import { errorText, type BackupSettings, type Defaults as DefaultsData, type ModelDefaults } from "../../lib/types";
 import { toast } from "../../lib/toast";
 import { Button, Field, Input, Select, Switch } from "../ui";
 import { PageError, PageSkeleton } from "../ui/PageState";
@@ -13,6 +13,7 @@ import { PageError, PageSkeleton } from "../ui/PageState";
 const BLANK: DefaultsData = {
   model: { reasoning: false, imageInput: false },
   roleThinkingLevel: undefined,
+  backup: { enabled: false, keep: 5 },
 };
 
 export function DefaultsPanel() {
@@ -22,11 +23,29 @@ export function DefaultsPanel() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (loaded.data) setDraft(loaded.data);
+    if (loaded.data) {
+      const src = loaded.data;
+      const sm = src.model ?? { reasoning: false, imageInput: false };
+      setDraft({
+        model: {
+          api: sm.api,
+          reasoning: sm.reasoning ?? false,
+          imageInput: sm.imageInput ?? false,
+          contextWindow: sm.contextWindow,
+          maxTokens: sm.maxTokens,
+          thinkingLevel: sm.thinkingLevel,
+        },
+        roleThinkingLevel: src.roleThinkingLevel,
+        backup: { enabled: src.backup?.enabled ?? false, keep: src.backup?.keep ?? 5 },
+      });
+    }
   }, [loaded.data]);
 
   const patchModel = (next: Partial<ModelDefaults>) =>
     setDraft((d) => ({ ...d, model: { ...d.model, ...next } }));
+
+  const patchBackup = (next: Partial<BackupSettings>) =>
+    setDraft((d) => ({ ...d, backup: { ...(d.backup ?? { enabled: false, keep: 5 }), ...next } }));
 
   const md = draft.model;
 
@@ -140,6 +159,26 @@ export function DefaultsPanel() {
                 {t.defaults.imageInput}
               </label>
             </div>
+          </div>
+
+          <div className="flex flex-col gap-4 border-t border-[var(--color-border)] pt-4">
+            <h3 className="text-[13px] font-medium text-[var(--color-fg-muted)]">{t.defaults.backupTitle}</h3>
+            <Field label={t.defaults.backupEnabled} hint={t.defaults.backupEnabledHint}>
+              <Switch checked={draft.backup.enabled} onChange={(v) => patchBackup({ enabled: v })} label={t.defaults.backupEnabled} />
+            </Field>
+            <Field label={t.defaults.backupKeep} hint={t.defaults.backupKeepHint}>
+              <Input
+                className="max-w-[160px]"
+                type="number"
+                min={1}
+                max={100}
+                value={draft.backup.keep}
+                disabled={!draft.backup.enabled}
+                onChange={(e) =>
+                  patchBackup({ keep: e.target.value === "" ? 5 : Number.isNaN(Number(e.target.value)) ? 5 : Number(e.target.value) })
+                }
+              />
+            </Field>
           </div>
         </div>
       )}

@@ -1,6 +1,7 @@
 #[cfg(test)]
 pub(crate) static SANDBOX_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
+mod backup;
 mod config_edit;
 mod defaults;
 pub mod error;

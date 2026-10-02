@@ -16,11 +16,35 @@ pub struct ModelDefaults {
     pub thinking_level: Option<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BackupSettings {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_keep")]
+    pub keep: u64,
+}
+
+fn default_keep() -> u64 {
+    5
+}
+
+impl Default for BackupSettings {
+    fn default() -> Self {
+        BackupSettings {
+            enabled: false,
+            keep: 5,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Defaults {
     pub model: ModelDefaults,
     pub role_thinking_level: Option<String>,
+    #[serde(default)]
+    pub backup: BackupSettings,
 }
 
 fn defaults_path() -> Result<PathBuf> {
@@ -39,7 +63,7 @@ pub fn read() -> Result<Defaults> {
 pub fn write(d: &Defaults) -> Result<Defaults> {
     let path = defaults_path()?;
     if path.exists() {
-        store::backup_file(&path)?;
+        let _ = store::backup_file(&path)?;
     }
     let text = serde_yaml::to_string(d).map_err(|e| AppError::internal(e.to_string()))?;
     store::write_atomic(&path, text.as_bytes())?;

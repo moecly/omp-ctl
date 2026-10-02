@@ -44,7 +44,7 @@ fn read_file() -> Result<PresetFile> {
 fn write_file(file: &PresetFile) -> Result<()> {
     let path = presets_path()?;
     if path.exists() {
-        store::backup_file(&path)?;
+        let _ = store::backup_file(&path)?;
     }
     let text = serde_yaml::to_string(file).map_err(|e| AppError::internal(e.to_string()))?;
     store::write_atomic(&path, text.as_bytes())

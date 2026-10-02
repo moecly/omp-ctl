@@ -149,7 +149,7 @@ pub fn set(agent: &Path, key: &str, value: &str) -> Result<SettingEntry> {
     store::adopt(agent, store::CONFIG)?;
     let config = store::store_file(store::CONFIG)?;
     if config.exists() {
-        store::backup_file(&config)?;
+        let _ = store::backup_file(&config)?;
     }
     proc::omp(&["config", "set", key, value])?;
     let human = proc::omp(&["config", "list"])?;
@@ -163,7 +163,7 @@ pub fn reset(agent: &Path, key: &str) -> Result<SettingEntry> {
     store::adopt(agent, store::CONFIG)?;
     let config = store::store_file(store::CONFIG)?;
     if config.exists() {
-        store::backup_file(&config)?;
+        let _ = store::backup_file(&config)?;
     }
     proc::omp(&["config", "reset", key])?;
     let human = proc::omp(&["config", "list"])?;

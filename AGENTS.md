@@ -25,11 +25,12 @@ src-tauri/src/
   error.rs              AppError（serde tag="kind"）；Result<T, E = AppError>
   paths.rs              home/store_dir/agent_dir 解析 + DirInfo/DirSource（agent_dir 经 OnceLock 进程内缓存，避免每命令起 omp 子进程；cfg(test) 不缓存）
   proc.rs               omp 子进程封装
-  store.rs              链接状态、接管、还原、原子写、.links.json、快照导出/导入
+  store.rs              链接状态、接管、还原、原子写、.links.json、快照导出/导入；`backup_file -> Option`（默认关闭）
+  backup.rs             写前备份开关 + 保留裁剪：`backup: {enabled, keep}`（`defaults.yml` 自有键，默认关闭/5 个，`backup/tests.rs`）
   yaml.rs               YamlDoc：行区间 YAML 编辑，保留注释
   models.rs             Provider/ModelEntry、读写、探测、模型目录（`models/tests.rs`）、默认模型
   roles.rs              modelRoles / cycleOrder
-  defaults.rs           `~/.omp-ctl/defaults.yml`：新增模型/角色时套用的默认值（`defaults/tests.rs`）
+  defaults.rs           `~/.omp-ctl/defaults.yml`：新增模型/角色时套用的默认值 + 备份开关（`defaults/tests.rs`）
   presets.rs            `~/.omp-ctl/presets.yml`：整套 modelRoles + cycleOrder 命名预设，应用为整套替换（`presets/tests.rs`）
   keybindings.rs        `~/.omp/agent/keybindings.yml` 的行区间编辑、接管/还原与按键校验（`keybindings/tests.rs`）
   config_edit.rs        config.yml 嵌套标量写入（`config_edit/tests.rs`）

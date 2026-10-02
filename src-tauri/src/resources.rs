@@ -337,7 +337,7 @@ pub fn write(agent: &Path, resource: &str, name: &str, content: &str) -> Result<
         Layout::File { .. } => store_path.clone(),
     };
     if file.exists() {
-        store::backup_file(&file)?;
+        let _ = store::backup_file(&file)?;
     }
     store::write_atomic(&file, content.as_bytes())?;
     store::adopt_rel(agent, &rel(spec, name))?;
@@ -494,7 +494,7 @@ pub fn restore_agent_default(agent: &Path, name: &str) -> Result<ResourceEntry> 
         std::fs::create_dir_all(parent).map_err(|e| AppError::fs(parent, e.to_string()))?;
     }
     if store_path.exists() {
-        store::backup_file(&store_path)?;
+        let _ = store::backup_file(&store_path)?;
     }
     store::write_atomic(&store_path, &bytes)?;
     store::adopt_rel(agent, &rel(spec, name))?;
