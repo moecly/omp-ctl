@@ -274,6 +274,7 @@ pub fn ensure_linked() -> Result<PathBuf> {
 }
 
 pub fn save_provider(p: &Provider) -> Result<()> {
+    validate(p)?;
     let path = ensure_linked()?;
     let mut doc = YamlDoc::load(&path)?;
     doc.set(&p.id, &p.to_value()?)?;
@@ -289,6 +290,30 @@ pub fn delete_provider(id: &str) -> Result<bool> {
         doc.save(&path)?;
     }
     Ok(removed)
+}
+
+pub const VALID_APIS: [&str; 11] = [
+    "openai-completions",
+    "openai-responses",
+    "openai-codex-responses",
+    "azure-openai-responses",
+    "anthropic-messages",
+    "bedrock-converse-stream",
+    "google-generative-ai",
+    "google-gemini-cli",
+    "google-vertex",
+    "openrouter-decisions",
+    "typesafe",
+];
+
+fn check_api(field: &str, api: &str) -> Result<()> {
+    if VALID_APIS.contains(&api.trim()) {
+        return Ok(());
+    }
+    Err(AppError::validation(
+        field,
+        format!("unknown api `{}` (must be one of {})", api.trim(), VALID_APIS.join(", ")),
+    ))
 }
 
 pub fn validate(p: &Provider) -> Result<()> {
@@ -316,10 +341,16 @@ pub fn validate(p: &Provider) -> Result<()> {
             "provider api or every model api must be set",
         ));
     }
+    if !p.api.trim().is_empty() {
+        check_api("api", &p.api)?;
+    }
     let mut seen = std::collections::BTreeSet::new();
     for m in &p.models {
         if m.id.trim().is_empty() {
             return Err(AppError::validation("models", "model id is required"));
+        }
+        if let Some(api) = m.api.as_deref().filter(|s| !s.trim().is_empty()) {
+            check_api("models.api", api)?;
         }
         if !seen.insert(m.id.clone()) {
             return Err(AppError::validation(

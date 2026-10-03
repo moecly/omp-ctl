@@ -88,3 +88,12 @@ fn parse_catalog_reads_thinking_and_image() {
     );
     assert!(items[0].image_input);
 }
+
+#[test]
+fn validate_rejects_unknown_api() {
+    let mut p = provider_sample();
+    p.api = "openai-chat".into();
+    assert!(validate(&p).is_err());
+    p.api = "openai-completions".into();
+    assert!(validate(&p).is_ok());
+}

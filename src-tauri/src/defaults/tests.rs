@@ -46,7 +46,7 @@ fn write_read_round_trips() {
     let _sb = Sandbox::new("roundtrip");
     let d = Defaults {
         model: ModelDefaults {
-            api: Some("openai-chat".into()),
+            api: Some("openai-completions".into()),
             reasoning: true,
             image_input: true,
             context_window: Some(200_000),

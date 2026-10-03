@@ -1,4 +1,4 @@
-export const API_PRESETS = ["anthropic-messages", "openai-chat", "openai-responses", "google-gemini"];
+export const API_PRESETS = ["anthropic-messages", "openai-completions", "openai-responses", "openai-codex-responses", "azure-openai-responses", "bedrock-converse-stream", "google-generative-ai", "google-gemini-cli", "google-vertex", "openrouter-decisions", "typesafe"];
 
 export const THINKING_LEVELS = ["off", "minimal", "low", "medium", "high", "xhigh", "max", "auto"];
 
