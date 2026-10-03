@@ -35,7 +35,7 @@ export function Mcp() {
   const [adopting, setAdopting] = useState(false);
 
   const mcpLink = overview.data?.links.find((l) => l.name === "mcp.json");
-  const unmanaged = mcpLink?.kind === "unmanaged";
+  const unmanaged = !!mcpLink && mcpLink.kind !== "managed";
 
   const mutate = async (fn: () => Promise<unknown>, msg: string) => {
     try {

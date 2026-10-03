@@ -103,9 +103,8 @@ pub fn list(agent: &Path) -> Result<Vec<McpServer>> {
 }
 
 fn write_root(agent: &Path, root: &Map<String, JValue>) -> Result<()> {
-    // A managed link means the real file lives in the store; writing through the agent-side
-    // symlink would replace it with a plain file, so target the store path directly.
-    let path = if store::link_state_rel(agent, MCP_FILE)?.kind == LinkKind::Managed {
+    let kind = store::link_state_rel(agent, MCP_FILE)?.kind;
+    let path = if kind == LinkKind::Managed {
         file_path()?
     } else {
         resolve(agent)?
@@ -114,7 +113,11 @@ fn write_root(agent: &Path, root: &Map<String, JValue>) -> Result<()> {
         let _ = store::backup_file(&path)?;
     }
     let text = serde_json::to_string_pretty(&JValue::Object(root.clone()))?;
-    store::write_atomic(&path, format!("{text}\n").as_bytes())
+    store::write_atomic(&path, format!("{text}\n").as_bytes())?;
+    if kind == LinkKind::Absent {
+        store::adopt_rel(agent, MCP_FILE)?;
+    }
+    Ok(())
 }
 
 pub fn upsert(agent: &Path, name: &str, value: JValue) -> Result<McpServer> {

@@ -132,3 +132,23 @@ fn unmanaged_file_is_readable_but_edits_stay_in_place() {
     assert!(text.contains("\"local\""));
     assert!(text.contains("\"$schema\""));
 }
+
+#[test]
+fn absent_write_goes_to_store_and_links() {
+    use crate::store::LinkKind;
+    let sb = Sandbox::new("absent");
+    upsert(
+        &sb.agent(),
+        "fresh",
+        serde_json::json!({ "type": "stdio", "command": "true" }),
+    )
+    .unwrap();
+    assert!(sb.root.join(".omp-ctl/mcp.json").exists());
+    assert!(!sb.root.join(".omp-ctl/mcp.json").is_symlink());
+    assert_eq!(
+        store::link_state_rel(&sb.agent(), MCP_FILE).unwrap().kind,
+        LinkKind::Managed
+    );
+    let names: Vec<String> = list(&sb.agent()).unwrap().into_iter().map(|s| s.name).collect();
+    assert_eq!(names, vec!["fresh"]);
+}
