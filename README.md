@@ -57,7 +57,14 @@ just build           # 构建 release 包
 
 ## 发布
 
-1. 升版本号（`src-tauri/Cargo.toml` 与 `src-tauri/tauri.conf.json`），提交到 `main`。
+1. 升版本号，共四处但只有前两处要手改：
+   * `src-tauri/Cargo.toml` 的 `version`
+   * `src-tauri/tauri.conf.json` 的 `version`（决定 deb/rpm/msi 产物的版本号）
+   * `Cargo.lock` —— 由 cargo 自己刷新，**必须一起提交**：AUR 构建用
+     `cargo build --release --locked`，lock 里 `omp-ctl` 的旧版本号会让它直接失败
+     （本地 `just build` 不带 `--locked`，会静默修好 lock，所以只有 AUR CI 会暴露）。
+     `cargo check` 或任意不带 `--locked` 的 cargo 命令都会顺手刷新它。
+   * `packaging/aur/PKGBUILD` 不用动：`publish.sh` 发布时按 tag 重写 `pkgver`/`pkgrel`/`sha256sums`。
 2. 打 tag 并推送：`git tag v0.6.0 && git push origin v0.6.0`。
 3. `release.yml` 的 `release` job 在三平台打包并建出 GitHub Release（deb / rpm / nsis+msi / app+dmg）。
 4. 同一个 workflow 的 `aur` job（`needs: release`）在 Arch 容器里跑

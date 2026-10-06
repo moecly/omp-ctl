@@ -65,7 +65,8 @@ packaging/aur/           AUR 包：PKGBUILD + publish.sh（本地与 CI 共用�
 * 默认模型只由「模型」页维护（`modelRoles.default`）；「omp-ctl」Tab 不再重复提供该选择器。
 * 预设是受管模式：下拉选中即整套替换应用，此后页面上的每次改动同时写回 `config.yml` 和该预设（`save_preset` 逐次同步 `modelRoles` + `cycleOrder`）。预设条只有「新建」，没有「覆盖」按钮；未选中任何预设时只写 `config.yml`。
 * `keybindings.yml` 与 `config.yml`/`mcp.json` 同为接管对象；action 表是内置静态表，未知 action 原样保留可编辑（`known: false`），不改动文件里已有的未知键。
-* AUR 包定义只有 `packaging/aur/` 一份，本地与 CI 都走 `publish.sh <tag>`：它按 tag 重写 `pkgver`/`pkgrel`/`sha256sums` 并用 `makepkg --printsrcinfo` 生成 `.SRCINFO`。不要手改 AUR 仓库内容，也不要让 PKGBUILD 的版本号偏离最近一次发布。
+* AUR 包定义只有 `packaging/aur/` 一份，本地与 CI 都走 `publish.sh <tag>`：它按 tag 重写 `pkgver`/`pkgrel`/`sha256sums` 并用 `makepkg --printsrcinfo` 生成 `.SRCINFO`，所以仓库里 PKGBUILD 的 `pkgver`/`sha256sums` 停留在上次发布的值，发布时不需要手改（想本地 `makepkg` 试打新版才需一并改这两行，否则 sha 会与 pkgver 不匹配）。不要手改 AUR 仓库内容。
+* 升版本号要改 `src-tauri/Cargo.toml` + `src-tauri/tauri.conf.json` + 刷新并提交 `Cargo.lock`；漏提交 lock 会让 AUR 的 `cargo build --locked` 失败。
 * 无注释，除非 WHY 不明显（隐式约束、反直觉行为）。
 
 ## 命令
