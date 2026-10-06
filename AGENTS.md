@@ -44,7 +44,8 @@ src-tauri/src/
 src-tauri/tests/
   real_agent_dir.rs     针对真实 agent 目录的集成测试
 src-tauri/icons/         `cargo tauri icon` 生成的图标集（`bundle.icon` 引用）
-.github/workflows/release.yml  推送 tag `v*` 触发三平台打包（Linux 仅 deb+rpm，无 AppImage）
+packaging/aur/           AUR 包：PKGBUILD + publish.sh（本地与 CI 共用的发布脚本）
+.github/workflows/release.yml  推送 tag `v*` 触发三平台打包（Linux 仅 deb+rpm，无 AppImage）；`aur` job 随后调 packaging/aur/publish.sh 推 AUR（secret `AUR_SSH_KEY`），拆成独立 workflow 不会被 GITHUB_TOKEN 的 release 事件触发
 ```
 
 ## 关键约定
@@ -64,6 +65,7 @@ src-tauri/icons/         `cargo tauri icon` 生成的图标集（`bundle.icon` �
 * 默认模型只由「模型」页维护（`modelRoles.default`）；「omp-ctl」Tab 不再重复提供该选择器。
 * 预设是受管模式：下拉选中即整套替换应用，此后页面上的每次改动同时写回 `config.yml` 和该预设（`save_preset` 逐次同步 `modelRoles` + `cycleOrder`）。预设条只有「新建」，没有「覆盖」按钮；未选中任何预设时只写 `config.yml`。
 * `keybindings.yml` 与 `config.yml`/`mcp.json` 同为接管对象；action 表是内置静态表，未知 action 原样保留可编辑（`known: false`），不改动文件里已有的未知键。
+* AUR 包定义只有 `packaging/aur/` 一份，本地与 CI 都走 `publish.sh <tag>`：它按 tag 重写 `pkgver`/`pkgrel`/`sha256sums` 并用 `makepkg --printsrcinfo` 生成 `.SRCINFO`。不要手改 AUR 仓库内容，也不要让 PKGBUILD 的版本号偏离最近一次发布。
 * 无注释，除非 WHY 不明显（隐式约束、反直觉行为）。
 
 ## 命令
@@ -78,6 +80,7 @@ just dev        # 启动 Tauri 窗口（beforeDevCommand 自动拉起 Vite）
 just check-rust # cargo check
 just build      # cargo tauri build（全默认包）；Release CI 按平台传 --bundles（linux deb,rpm / win nsis,msi / mac app,dmg）
 just fmt-rust   # cargo fmt
+packaging/aur/publish.sh v0.6.0  # 生成 .SRCINFO 并把 PKGBUILD 推到 AUR（用 ~/.ssh/aur，makepkg 拒绝 root；第二参数为 pkgrel）
 ```
 
 `just dev` 已由 `beforeDevCommand` 自动启动 Vite，无需另开 `just serve`。

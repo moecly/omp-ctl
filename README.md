@@ -9,6 +9,18 @@
 * 开启功能 = 建立链接
 * 首次接管会把原始文件/链接移动到 `~/.omp-ctl/backup/`，可一键还原
 
+## 安装
+
+**Arch Linux（AUR）**
+
+```sh
+yay -S omp-ctl        # 或 paru -S omp-ctl
+```
+
+包定义在 [`packaging/aur/`](packaging/aur/)，从源码构建，依赖 `gtk3`、`webkit2gtk-4.1`。
+
+**其它平台**：从 [Releases](https://github.com/moecly/omp-ctl/releases) 下载 deb / rpm / nsis / msi / dmg。
+
 ## 功能
 
 **模型管理（`models.yml`）**
@@ -41,8 +53,27 @@ just test            # 运行 Rust 测试
 just build           # 构建 release 包
 ```
 
-前端是无构建步骤的静态文件（`dist/index.html`、`style.css`、`app.js`），
-通过 `withGlobalTauri` 调用后端命令。
+前端在 `web/`（React + TypeScript + Vite，`just web-build` 产出 `dist/`）。
+
+## 发布
+
+1. 升版本号（`src-tauri/Cargo.toml` 与 `src-tauri/tauri.conf.json`），提交到 `main`。
+2. 打 tag 并推送：`git tag v0.6.0 && git push origin v0.6.0`。
+3. `release.yml` 的 `release` job 在三平台打包并建出 GitHub Release（deb / rpm / nsis+msi / app+dmg）。
+4. 同一个 workflow 的 `aur` job（`needs: release`）在 Arch 容器里跑
+   `packaging/aur/publish.sh <tag>`，把 PKGBUILD 与 .SRCINFO 推到 AUR。
+   需要仓库 secret `AUR_SSH_KEY`（AUR 账户里登记的 ed25519 私钥，无口令）。
+   不能拆成独立 workflow：release 由 `GITHUB_TOKEN` 创建，GitHub 不会用它触发新 workflow。
+
+手动补发（本地，用 `~/.ssh/aur`，`AUR_KEY_FILE` 可改）：
+
+```sh
+packaging/aur/publish.sh v0.6.0        # 首次发布 / 补发某个 tag
+packaging/aur/publish.sh v0.6.0 2      # 同版本重打包，pkgrel=2
+```
+
+AUR 账户与密钥准备：到 <https://aur.archlinux.org> 注册，把公钥加进账户
+（`ssh-keygen -t ed25519 -f ~/.ssh/aur`），私钥内容存成仓库 secret `AUR_SSH_KEY`。
 
 ## 目录结构
 

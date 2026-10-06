@@ -58,3 +58,39 @@ jobs:
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
+
+  # 不能拆成独立 workflow：release 事件由 GITHUB_TOKEN 创建，GitHub 不会用它触发新 workflow。
+  aur:
+    needs: release
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:base-devel
+      options: --user root
+    steps:
+      # base-devel 镜像里没有 git/openssh，必须先装（checkout 也要用 git）
+      - name: 安装容器内依赖
+        run: pacman -Sy --noconfirm --needed git openssh
+
+      - uses: actions/checkout@v4
+
+      - name: 准备 makepkg 环境与 AUR 密钥
+        env:
+          AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          # makepkg 拒绝以 root 运行，连 --printsrcinfo 也不例外
+          useradd -m builder
+          chown -R builder:builder "$GITHUB_WORKSPACE"
+          install -d -o builder -g builder -m700 /home/builder/.ssh
+          printf '%s\n' "$AUR_SSH_KEY" >/home/builder/.ssh/aur
+          chown builder:builder /home/builder/.ssh/aur
+          chmod 600 /home/builder/.ssh/aur
+
+      - name: 推送 PKGBUILD 到 AUR
+        run: |
+          set -euo pipefail
+          sudo -u builder -H env \
+            AUR_KEY_FILE=/home/builder/.ssh/aur \
+            GIT_SSH_COMMAND='ssh -i /home/builder/.ssh/aur -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new' \
+            bash "$GITHUB_WORKSPACE/packaging/aur/publish.sh" "${GITHUB_REF_NAME}"
