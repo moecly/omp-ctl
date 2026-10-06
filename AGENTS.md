@@ -44,7 +44,7 @@ src-tauri/src/
 src-tauri/tests/
   real_agent_dir.rs     针对真实 agent 目录的集成测试
 src-tauri/icons/         `cargo tauri icon` 生成的图标集（`bundle.icon` 引用）
-packaging/aur/           AUR 包：PKGBUILD + publish.sh（本地与 CI 共用的发布脚本）
+packaging/aur/           AUR 包：每个包一个子目录（omp-ctl 源码构建 / omp-ctl-bin 展开 release 的 .deb）+ publish.sh（本地与 CI 共用的发布脚本）
 .github/workflows/release.yml  推送 tag `v*` 触发三平台打包（Linux 仅 deb+rpm，无 AppImage）；`aur` job 随后调 packaging/aur/publish.sh 推 AUR（secret `AUR_SSH_KEY`），拆成独立 workflow 不会被 GITHUB_TOKEN 的 release 事件触发
 ```
 
@@ -65,7 +65,8 @@ packaging/aur/           AUR 包：PKGBUILD + publish.sh（本地与 CI 共用�
 * 默认模型只由「模型」页维护（`modelRoles.default`）；「omp-ctl」Tab 不再重复提供该选择器。
 * 预设是受管模式：下拉选中即整套替换应用，此后页面上的每次改动同时写回 `config.yml` 和该预设（`save_preset` 逐次同步 `modelRoles` + `cycleOrder`）。预设条只有「新建」，没有「覆盖」按钮；未选中任何预设时只写 `config.yml`。
 * `keybindings.yml` 与 `config.yml`/`mcp.json` 同为接管对象；action 表是内置静态表，未知 action 原样保留可编辑（`known: false`），不改动文件里已有的未知键。
-* AUR 包定义只有 `packaging/aur/` 一份，本地与 CI 都走 `publish.sh <tag>`：它按 tag 重写 `pkgver`/`pkgrel`/`sha256sums` 并用 `makepkg --printsrcinfo` 生成 `.SRCINFO`，所以仓库里 PKGBUILD 的 `pkgver`/`sha256sums` 停留在上次发布的值，发布时不需要手改（想本地 `makepkg` 试打新版才需一并改这两行，否则 sha 会与 pkgver 不匹配）。不要手改 AUR 仓库内容。
+* AUR 包定义只有 `packaging/aur/<包名>/PKGBUILD` 一份，本地与 CI 都走 `publish.sh <tag> [pkgrel] [包名...]`：它按 tag 重写 `pkgver`/`pkgrel`/`sha256sums`（sha 取 `source[0]` 的下载结果）、用 `makepkg --printsrcinfo` 生成 `.SRCINFO`，推送成功后**把改写结果写回仓库**，所以仓库里的 PKGBUILD 始终等于 AUR 上的版本。不带包名参数就发布全部包（CI 的 matrix 每次只传一个，一个失败不影响另一个）。不要手改 AUR 仓库内容。
+* AUR 的 `omp-ctl` 与 `omp-ctl-bin` 都必须在 PKGBUILD 里带 `--features tauri/custom-protocol`（前者是 `cargo build` 参数，后者是 CI 打包产物天然具备）：`tauri::is_dev() = !cfg!(feature = "custom-protocol")`，缺了它二进制去连 `devUrl`（127.0.0.1:1420），装完打开就是一个连不上的窗口。同理，本地 `cargo tauri build` 不要手写 `cargo build` 代替。
 * 升版本号要改 `src-tauri/Cargo.toml` + `src-tauri/tauri.conf.json` + 刷新并提交 `Cargo.lock`；漏提交 lock 会让 AUR 的 `cargo build --locked` 失败。
 * 无注释，除非 WHY 不明显（隐式约束、反直觉行为）。
 
@@ -81,7 +82,7 @@ just dev        # 启动 Tauri 窗口（beforeDevCommand 自动拉起 Vite）
 just check-rust # cargo check
 just build      # cargo tauri build（全默认包）；Release CI 按平台传 --bundles（linux deb,rpm / win nsis,msi / mac app,dmg）
 just fmt-rust   # cargo fmt
-packaging/aur/publish.sh v0.6.0  # 生成 .SRCINFO 并把 PKGBUILD 推到 AUR（用 ~/.ssh/aur，makepkg 拒绝 root；第二参数为 pkgrel）
+packaging/aur/publish.sh v0.6.0  # 生成 .SRCINFO 并把 PKGBUILD 推到 AUR（用 ~/.ssh/aur，makepkg 拒绝 root）；第二参数 pkgrel，第三起为包名（默认全部）
 ```
 
 `just dev` 已由 `beforeDevCommand` 自动启动 Vite，无需另开 `just serve`。

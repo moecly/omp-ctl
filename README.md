@@ -15,9 +15,12 @@
 
 ```sh
 yay -S omp-ctl        # 或 paru -S omp-ctl
+# 不想本地编译（Rust release + LTO，几分钟）就用预编译包：
+yay -S omp-ctl-bin
 ```
 
-包定义在 [`packaging/aur/`](packaging/aur/)，从源码构建，依赖 `gtk3`、`webkit2gtk-4.1`。
+包定义在 [`packaging/aur/`](packaging/aur/)：`omp-ctl` 从源码构建（依赖 `bun` + `cargo`），
+`omp-ctl-bin` 直接展开 release 里的 `.deb`（只支持 `x86_64`）。两者 `provides`/`conflicts` 互斥，装其一。
 
 **其它平台**：从 [Releases](https://github.com/moecly/omp-ctl/releases) 下载 deb / rpm / nsis / msi / dmg。
 
@@ -64,23 +67,41 @@ just build           # 构建 release 包
      `cargo build --release --locked`，lock 里 `omp-ctl` 的旧版本号会让它直接失败
      （本地 `just build` 不带 `--locked`，会静默修好 lock，所以只有 AUR CI 会暴露）。
      `cargo check` 或任意不带 `--locked` 的 cargo 命令都会顺手刷新它。
-   * `packaging/aur/PKGBUILD` 不用动：`publish.sh` 发布时按 tag 重写 `pkgver`/`pkgrel`/`sha256sums`。
+   * `packaging/aur/*/PKGBUILD` 不用动：`publish.sh` 按 tag 重写 `pkgver`/`pkgrel`/`sha256sums`，
+     发布成功后还会把改写结果**写回仓库**，所以仓库里的 PKGBUILD 永远等于 AUR 上的版本。
 2. 打 tag 并推送：`git tag v0.6.0 && git push origin v0.6.0`。
 3. `release.yml` 的 `release` job 在三平台打包并建出 GitHub Release（deb / rpm / nsis+msi / app+dmg）。
-4. 同一个 workflow 的 `aur` job（`needs: release`）在 Arch 容器里跑
-   `packaging/aur/publish.sh <tag>`，把 PKGBUILD 与 .SRCINFO 推到 AUR。
+4. 同一个 workflow 的 `aur` job（`needs: release`）在 Arch 容器里对
+   `packaging/aur/` 下的每个包各跑一次 `publish.sh <tag> 1 <包名>`（matrix + `fail-fast: false`，
+   一个包失败不影响另一个），把 PKGBUILD 与 .SRCINFO 推到 AUR。
    需要仓库 secret `AUR_SSH_KEY`（AUR 账户里登记的 ed25519 私钥，无口令）。
    不能拆成独立 workflow：release 由 `GITHUB_TOKEN` 创建，GitHub 不会用它触发新 workflow。
 
 手动补发（本地，用 `~/.ssh/aur`，`AUR_KEY_FILE` 可改）：
 
 ```sh
-packaging/aur/publish.sh v0.6.0        # 首次发布 / 补发某个 tag
-packaging/aur/publish.sh v0.6.0 2      # 同版本重打包，pkgrel=2
+packaging/aur/publish.sh v0.6.0              # 全部包，pkgrel=1
+packaging/aur/publish.sh v0.6.0 2 omp-ctl    # 只发 omp-ctl，pkgrel=2（同版本重打包）
 ```
 
-AUR 账户与密钥准备：到 <https://aur.archlinux.org> 注册，把公钥加进账户
-（`ssh-keygen -t ed25519 -f ~/.ssh/aur`），私钥内容存成仓库 secret `AUR_SSH_KEY`。
+本地 `makepkg` 手动试打（在 `packaging/aur/omp-ctl/` 里复制 PKGBUILD 到空目录再 `makepkg -f`）
+必须带上 `--features tauri/custom-protocol`——PKGBUILD 已经写了，别删：缺了它编出来的是
+dev 模式二进制，运行时去连 `127.0.0.1:1420`（Vite）而不是内嵌前端，装完打开就是个连不上的窗口。
+
+AUR 账户与密钥准备：
+
+1. 到 <https://aur.archlinux.org/register/> 注册。**注册不设密码**：账户先以空密码 + resetkey
+   落库，必须点开邮件里的设置密码链接才可用 —— AUR 的 git 认证在 SQL 里显式要求
+   `NOT Users.Passwd = ''`（`aurweb/git/auth.py`），没走完这一步的账户即使公钥已登记，
+   SSH 也永远是 `Permission denied (publickey)`。
+2. `ssh-keygen -t ed25519 -f ~/.ssh/aur`，登录后把 **`~/.ssh/aur.pub`** 内容填进
+   <https://aur.archlinux.org/account/> 的 `SSH Public Key` 并保存。
+3. 把 **`~/.ssh/aur` 私钥全文**（含 `BEGIN/END` 行，不是 `.pub`）存成仓库 secret `AUR_SSH_KEY`。
+
+AUR 的 SSH 认证条件只有三条（`aurweb/git/auth.py`）：该公钥存在于此账户、账户未被
+suspended、账户已设密码。`Permission denied (publickey)` 必然是不满足其中之一，与 GitHub 侧
+配置无关。`publish.sh` 每次运行先打印所用私钥指纹并校验私钥可用；CI 另有一页直接探测
+`aur@aur.archlinux.org` 的认证，失败时用 `::error::` 指出上述原因。
 
 ## 目录结构
 

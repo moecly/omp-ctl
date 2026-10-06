@@ -64,6 +64,11 @@ jobs:
     needs: release
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
+    strategy:
+      # 一个包失败不影响另一个：omp-ctl-bin 的资产和 omp-ctl 的源码构建互不相关
+      fail-fast: false
+      matrix:
+        package: [omp-ctl, omp-ctl-bin]
     container:
       image: archlinux:base-devel
       options: --user root
@@ -87,10 +92,26 @@ jobs:
           chown builder:builder /home/builder/.ssh/aur
           chmod 600 /home/builder/.ssh/aur
 
+      - name: 校验 AUR 密钥与认证
+        run: |
+          set -euo pipefail
+          key=/home/builder/.ssh/aur
+          [ -s "$key" ] || { echo "::error::secret AUR_SSH_KEY 为空或未设置"; exit 1; }
+          pub=$(ssh-keygen -y -f "$key" -P '') || {
+              echo "::error::AUR_SSH_KEY 不是有效私钥（公钥 / 带口令 / 被截断）"; exit 1; }
+          echo "CI 公钥指纹：$(printf '%s\n' "$pub" | ssh-keygen -lf -)"
+          out=$(sudo -u builder -H ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes \
+                -o StrictHostKeyChecking=accept-new -T aur@aur.archlinux.org 2>&1 || true)
+          printf '%s\n' "$out"
+          if printf '%s' "$out" | grep -q 'Permission denied'; then
+              echo "::error::AUR 拒绝了该密钥：账户未注册，或 My Account 中登记的公钥与上面指纹不一致"
+              exit 1
+          fi
+
       - name: 推送 PKGBUILD 到 AUR
         run: |
           set -euo pipefail
           sudo -u builder -H env \
             AUR_KEY_FILE=/home/builder/.ssh/aur \
             GIT_SSH_COMMAND='ssh -i /home/builder/.ssh/aur -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new' \
-            bash "$GITHUB_WORKSPACE/packaging/aur/publish.sh" "${GITHUB_REF_NAME}"
+            bash "$GITHUB_WORKSPACE/packaging/aur/publish.sh" "${GITHUB_REF_NAME}" 1 "${{ matrix.package }}"
