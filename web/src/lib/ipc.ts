@@ -166,10 +166,11 @@ export const ipc = {
     return r;
   },
   applyPreset: async (name: string) => {
-    const r = await invoke<ModelRoles>("apply_preset", { name });
+    const [roles, clearedWorkspace] = await invoke<[ModelRoles, boolean]>("apply_preset", { name });
     invalidate("model-roles");
     invalidate("overview");
-    return r;
+    invalidate("workspaces");
+    return { roles, clearedWorkspace };
   },
 
   listResources: (resource: ResourceId | string) =>

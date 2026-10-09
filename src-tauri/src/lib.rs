@@ -471,9 +471,10 @@ fn delete_preset(name: String) -> Result<Vec<PresetEntry>> {
 }
 
 #[tauri::command]
-fn apply_preset(name: String) -> Result<ModelRoles> {
-    let _ = workspaces::clear_active();
-    presets::apply(&name)
+fn apply_preset(name: String) -> Result<(ModelRoles, bool)> {
+    let cleared = workspaces::active()?.is_some();
+    workspaces::clear_active()?;
+    presets::apply(&name).map(|r| (r, cleared))
 }
 
 #[tauri::command]
