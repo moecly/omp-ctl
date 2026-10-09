@@ -28,3 +28,14 @@ export function loadSidebar(): boolean {
 export function saveSidebar(v: boolean) {
   localStorage.setItem(KEY_SIDEBAR, v ? "1" : "0");
 }
+
+const KEY_PRESET = "omp-ctl.preset";
+
+export function loadPreset(): string {
+  return localStorage.getItem(KEY_PRESET) ?? "";
+}
+
+export function savePreset(v: string) {
+  if (v) localStorage.setItem(KEY_PRESET, v);
+  else localStorage.removeItem(KEY_PRESET);
+}

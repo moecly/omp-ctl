@@ -295,6 +295,7 @@ export interface Strings {
     apply: string;
     save: string;
     unselected: string;
+    saveHint: string;
   };
 }
 
@@ -596,6 +597,7 @@ const zh: Strings = {
     apply: "切换",
     save: "保存当前到此区",
     unselected: "未选中工作区，改动仅写当前配置",
+    saveHint: "仅快照，不切换",
   },
 };
 
@@ -897,6 +899,7 @@ const en: Strings = {
     apply: "Switch",
     save: "Save current into this workspace",
     unselected: "No workspace selected; edits apply to current config only",
+    saveHint: "Snapshot only; does not switch",
   },
 };
 

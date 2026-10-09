@@ -118,7 +118,7 @@ export function Workspaces() {
               <Button size="sm" disabled={busy || w.active} onClick={() => doApply(w.name)}>
                 {t.workspaces.apply}
               </Button>
-              <Button size="sm" variant="ghost" disabled={busy} onClick={() => doSave(w.name)}>
+              <Button size="sm" variant="ghost" disabled={busy} title={t.workspaces.saveHint} onClick={() => doSave(w.name)}>
                 {t.workspaces.save}
               </Button>
               <Button
