@@ -60,9 +60,9 @@ export function ModelRoles() {
     if (!name || applying) return;
     setApplying(true);
     try {
-      const { clearedWorkspace } = await ipc.applyPreset(name);
+      const { workspaceSynced } = await ipc.applyPreset(name);
       toast.success(t.presets.applied, name);
-      if (clearedWorkspace) toast.info(t.presets.workspaceCleared);
+      if (workspaceSynced) toast.info(t.presets.workspaceSynced, workspaceSynced);
       roles.reload();
     } catch (e) {
       toast.error(t.presets.applied, errorText(e));

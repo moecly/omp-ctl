@@ -198,7 +198,7 @@ export interface Strings {
     namePrompt: string;
     empty: string;
     applied: string;
-    workspaceCleared: string;
+    workspaceSynced: string;
     saved: string;
     deleted: string;
   };
@@ -501,7 +501,7 @@ const zh: Strings = {
     namePrompt: "预设名称",
     empty: "还没有预设",
     applied: "已应用预设",
-    workspaceCleared: "已取消工作区激活（预设与工作区互斥）",
+    workspaceSynced: "已同步到当前工作区（预设只改模型角色，工作区其余内容不变）",
     saved: "已保存预设",
     deleted: "已删除预设",
   },
@@ -804,7 +804,7 @@ const en: Strings = {
     namePrompt: "Preset name",
     empty: "No presets yet",
     applied: "Preset applied",
-    workspaceCleared: "Workspace deactivated (presets and workspaces are exclusive)",
+    workspaceSynced: "Synced to the active workspace (presets only change model roles; other workspace contents are untouched)",
     saved: "Preset saved",
     deleted: "Preset deleted",
   },
