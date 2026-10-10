@@ -165,6 +165,11 @@ export const ipc = {
     invalidate("presets");
     return r;
   },
+  renamePreset: async (oldName: string, newName: string) => {
+    const r = await invoke<Preset[]>("rename_preset", { oldName, newName });
+    invalidate("presets");
+    return r;
+  },
   applyPreset: async (name: string) => {
     const r = await invoke<{ roles: ModelRoles; workspaceSynced: string | null }>("apply_preset", { name });
     invalidate("model-roles");

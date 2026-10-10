@@ -201,6 +201,8 @@ export interface Strings {
     workspaceSynced: string;
     saved: string;
     deleted: string;
+    rename: string;
+    renamed: string;
   };
   prompts: {
     title: string;
@@ -504,6 +506,8 @@ const zh: Strings = {
     workspaceSynced: "已同步到当前工作区（预设只改模型角色，工作区其余内容不变）",
     saved: "已保存预设",
     deleted: "已删除预设",
+    rename: "重命名预设",
+    renamed: "已重命名预设",
   },
   prompts: {
     title: "系统提示词",
@@ -807,6 +811,8 @@ const en: Strings = {
     workspaceSynced: "Synced to the active workspace (presets only change model roles; other workspace contents are untouched)",
     saved: "Preset saved",
     deleted: "Preset deleted",
+    rename: "Rename preset",
+    renamed: "Preset renamed",
   },
   prompts: {
     title: "System Prompts",

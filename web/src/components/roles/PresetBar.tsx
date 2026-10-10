@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 
 import { useApp } from "../../hooks/useApp";
-import { useAsync } from "../../hooks/useAsync";
+import type { AsyncState } from "../../hooks/useAsync";
 import { ipc } from "../../lib/ipc";
 import { errorText, type Preset } from "../../lib/types";
 import { toast } from "../../lib/toast";
@@ -10,15 +10,18 @@ import { Button, ConfirmDialog, Dialog, Field, IconButton, Input, Select } from 
 
 export function PresetBar({
   target,
+  presets,
   onSelect,
 }: {
   target: string;
+  presets: AsyncState<Preset[]>;
   onSelect: (name: string) => void;
 }) {
   const { t } = useApp();
-  const presets = useAsync<Preset[]>(() => ipc.listPresets(), []);
   const [name, setName] = useState("");
   const [creating, setCreating] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [renameName, setRenameName] = useState("");
   const [busy, setBusy] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -38,6 +41,24 @@ export function PresetBar({
       setCreating(false);
     } catch (e) {
       toast.error(t.presets.saved, errorText(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const submitRename = async () => {
+    const trimmed = renameName.trim();
+    const from = target;
+    if (!trimmed || trimmed === from || list.some((p) => p.name === trimmed)) return;
+    setBusy(true);
+    try {
+      await ipc.renamePreset(from, trimmed);
+      presets.reload();
+      onSelect(trimmed);
+      toast.success(t.presets.renamed, trimmed);
+      setRenaming(false);
+    } catch (e) {
+      toast.error(t.presets.renamed, errorText(e));
     } finally {
       setBusy(false);
     }
@@ -78,6 +99,16 @@ export function PresetBar({
       <Button size="sm" disabled={busy} onClick={() => setCreating(true)}>
         {t.presets.captureCurrent}
       </Button>
+      <IconButton
+        label={t.presets.rename}
+        disabled={!target || busy}
+        onClick={() => {
+          setRenameName(target);
+          setRenaming(true);
+        }}
+      >
+        <Pencil size={14} />
+      </IconButton>
       <IconButton label={t.common.delete} disabled={!target || busy} onClick={() => setDeleting(true)}>
         <Trash2 size={14} />
       </IconButton>
@@ -101,6 +132,33 @@ export function PresetBar({
       >
         <Field label={t.presets.namePrompt}>
           <Input autoFocus value={name} onChange={(e) => setName(e.target.value)} />
+        </Field>
+      </Dialog>
+
+      <Dialog
+        open={renaming}
+        title={t.presets.rename}
+        onClose={() => setRenaming(false)}
+        footer={
+          <>
+            <Button onClick={() => setRenaming(false)}>{t.common.cancel}</Button>
+            <Button
+              variant="primary"
+              disabled={
+                busy ||
+                !renameName.trim() ||
+                renameName.trim() === target ||
+                list.some((p) => p.name === renameName.trim())
+              }
+              onClick={submitRename}
+            >
+              {t.common.save}
+            </Button>
+          </>
+        }
+      >
+        <Field label={t.presets.namePrompt}>
+          <Input autoFocus value={renameName} onChange={(e) => setRenameName(e.target.value)} />
         </Field>
       </Dialog>
 

@@ -169,7 +169,7 @@ export function ModelRoles() {
       {roles.error && <PageError message={roles.error} onRetry={roles.reload} />}
       {refs.error && <PageError message={refs.error} onRetry={refs.reload} />}
 
-      <PresetBar target={validTarget} onSelect={select} />
+      <PresetBar target={validTarget} presets={presets} onSelect={select} />
 
       {roles.loading ? (
         <PageSkeleton rows={4} />

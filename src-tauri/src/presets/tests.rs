@@ -126,3 +126,28 @@ fn invalid_names_rejected() {
         }
     }
 }
+
+#[test]
+fn rename_moves_preset_and_rejects_collision() {
+    let _sb = Sandbox::new("rename");
+    save("old", roles_of(&[("default", "axon/one")]), vec!["default".into()]).unwrap();
+    save("other", roles_of(&[("default", "axon/two")]), Vec::new()).unwrap();
+
+    let after = rename("old", "new").unwrap();
+    assert!(after.iter().any(|e| e.name == "new"));
+    assert!(!after.iter().any(|e| e.name == "old"));
+    let moved = after.iter().find(|e| e.name == "new").unwrap();
+    assert_eq!(moved.roles.get("default").map(String::as_str), Some("axon/one"));
+    assert_eq!(moved.cycle_order, vec!["default"]);
+
+    match rename("new", "other") {
+        Err(AppError::Validation { field, .. }) => assert_eq!(field, "name"),
+        other => panic!("expected collision error, got {other:?}"),
+    }
+    match rename("missing", "whatever") {
+        Err(AppError::Validation { field, .. }) => assert_eq!(field, "name"),
+        other => panic!("expected not-found error, got {other:?}"),
+    }
+    assert!(rename("new", "new").unwrap().iter().any(|e| e.name == "new"));
+    assert!(list().unwrap().iter().any(|e| e.name == "other"), "collision must not delete");
+}

@@ -290,6 +290,10 @@ pub fn delete_preset(name: String) -> Result<Vec<PresetEntry>> {
     presets::delete(&name)
 }
 
+pub fn rename_preset(old_name: String, new_name: String) -> Result<Vec<PresetEntry>> {
+    presets::rename(&old_name, &new_name)
+}
+
 pub fn apply_preset(name: String) -> Result<ModelRoles> {
     presets::apply(&name)
 }

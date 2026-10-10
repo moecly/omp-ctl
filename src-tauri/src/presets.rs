@@ -101,6 +101,25 @@ pub fn delete(name: &str) -> Result<Vec<PresetEntry>> {
     list()
 }
 
+pub fn rename(old: &str, new: &str) -> Result<Vec<PresetEntry>> {
+    let old = validate_name(old)?;
+    let new = validate_name(new)?;
+    if old == new {
+        return list();
+    }
+    let mut file = read_file()?;
+    if file.presets.contains_key(&new) {
+        return Err(AppError::validation("name", "preset already exists"));
+    }
+    let preset = file
+        .presets
+        .remove(&old)
+        .ok_or_else(|| AppError::validation("name", "preset not found"))?;
+    file.presets.insert(new, preset);
+    write_file(&file)?;
+    list()
+}
+
 pub fn apply(name: &str) -> Result<ModelRoles> {
     let name = validate_name(name)?;
     let file = read_file()?;

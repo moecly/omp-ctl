@@ -478,6 +478,11 @@ fn delete_preset(name: String) -> Result<Vec<PresetEntry>> {
 }
 
 #[tauri::command]
+fn rename_preset(old_name: String, new_name: String) -> Result<Vec<PresetEntry>> {
+    presets::rename(&old_name, &new_name)
+}
+
+#[tauri::command]
 fn apply_preset(name: String) -> Result<ApplyPresetOutcome> {
     let active_ws = workspaces::active()?;
     let roles = presets::apply(&name)?;
@@ -606,6 +611,7 @@ pub fn run() {
             list_presets,
             save_preset,
             delete_preset,
+            rename_preset,
             apply_preset,
             list_keybindings,
             adopt_keybindings,
