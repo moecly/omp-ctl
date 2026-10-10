@@ -112,3 +112,26 @@ fn active_pointer_roundtrip() {
     clear_active().unwrap();
     assert_eq!(active().unwrap(), None);
 }
+
+#[test]
+fn sync_active_roles_updates_snapshot_and_keeps_pointer() {
+    let _sb = setup_state();
+    create("A").unwrap();
+    assert_eq!(active().unwrap().as_deref(), Some("A"));
+
+    let mut roles = BTreeMap::new();
+    roles.insert("default".to_string(), "axon/preset".to_string());
+    sync_active_roles(&roles, &["default".to_string()]).unwrap();
+
+    assert_eq!(active().unwrap().as_deref(), Some("A"));
+    let manifest = read_manifest(&ws_dir("A").unwrap()).unwrap();
+    assert_eq!(manifest.roles.get("default").unwrap(), "axon/preset");
+    assert_eq!(manifest.cycle_order, vec!["default"]);
+}
+
+#[test]
+fn sync_active_roles_without_active_workspace_errors() {
+    let _sb = setup_state();
+    let roles = BTreeMap::new();
+    assert!(sync_active_roles(&roles, &[]).is_err());
+}

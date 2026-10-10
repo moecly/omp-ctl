@@ -49,6 +49,13 @@ pub struct SaveResult {
     pub role_updates: Vec<String>,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplyPresetOutcome {
+    pub roles: ModelRoles,
+    pub workspace_synced: Option<String>,
+}
+
 #[tauri::command]
 fn get_dirs() -> Result<DirInfo> {
     models::dir_info()
@@ -471,9 +478,25 @@ fn delete_preset(name: String) -> Result<Vec<PresetEntry>> {
 }
 
 #[tauri::command]
-fn apply_preset(name: String) -> Result<ModelRoles> {
-    let _ = workspaces::clear_active();
-    presets::apply(&name)
+fn rename_preset(old_name: String, new_name: String) -> Result<Vec<PresetEntry>> {
+    presets::rename(&old_name, &new_name)
+}
+
+#[tauri::command]
+fn apply_preset(name: String) -> Result<ApplyPresetOutcome> {
+    let active_ws = workspaces::active()?;
+    let roles = presets::apply(&name)?;
+    let workspace_synced = match &active_ws {
+        Some(ws) => match workspaces::sync_active_roles(&roles.roles, &roles.cycle_order) {
+            Ok(()) => Some(ws.clone()),
+            Err(_) => {
+                let _ = workspaces::clear_active();
+                None
+            }
+        },
+        None => None,
+    };
+    Ok(ApplyPresetOutcome { roles, workspace_synced })
 }
 
 #[tauri::command]
@@ -588,6 +611,7 @@ pub fn run() {
             list_presets,
             save_preset,
             delete_preset,
+            rename_preset,
             apply_preset,
             list_keybindings,
             adopt_keybindings,

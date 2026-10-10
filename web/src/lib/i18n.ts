@@ -198,8 +198,11 @@ export interface Strings {
     namePrompt: string;
     empty: string;
     applied: string;
+    workspaceSynced: string;
     saved: string;
     deleted: string;
+    rename: string;
+    renamed: string;
   };
   prompts: {
     title: string;
@@ -295,6 +298,7 @@ export interface Strings {
     apply: string;
     save: string;
     unselected: string;
+    saveHint: string;
   };
 }
 
@@ -499,8 +503,11 @@ const zh: Strings = {
     namePrompt: "预设名称",
     empty: "还没有预设",
     applied: "已应用预设",
+    workspaceSynced: "已同步到当前工作区（预设只改模型角色，工作区其余内容不变）",
     saved: "已保存预设",
     deleted: "已删除预设",
+    rename: "重命名预设",
+    renamed: "已重命名预设",
   },
   prompts: {
     title: "系统提示词",
@@ -596,6 +603,7 @@ const zh: Strings = {
     apply: "切换",
     save: "保存当前到此区",
     unselected: "未选中工作区，改动仅写当前配置",
+    saveHint: "仅快照，不切换",
   },
 };
 
@@ -800,8 +808,11 @@ const en: Strings = {
     namePrompt: "Preset name",
     empty: "No presets yet",
     applied: "Preset applied",
+    workspaceSynced: "Synced to the active workspace (presets only change model roles; other workspace contents are untouched)",
     saved: "Preset saved",
     deleted: "Preset deleted",
+    rename: "Rename preset",
+    renamed: "Preset renamed",
   },
   prompts: {
     title: "System Prompts",
@@ -897,6 +908,7 @@ const en: Strings = {
     apply: "Switch",
     save: "Save current into this workspace",
     unselected: "No workspace selected; edits apply to current config only",
+    saveHint: "Snapshot only; does not switch",
   },
 };
 

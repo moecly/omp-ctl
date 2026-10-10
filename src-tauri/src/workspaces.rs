@@ -428,5 +428,22 @@ pub(crate) fn sync_active_quiet() {
     }
 }
 
+// Applying a model preset only touches modelRoles + cycleOrder. If a workspace
+// is active, its snapshot must follow or .active would point at stale roles.
+pub fn sync_active_roles(roles: &BTreeMap<String, String>, cycle_order: &[String]) -> Result<()> {
+    let name = active()?.ok_or_else(|| AppError::validation("workspace", "no active workspace"))?;
+    let dir = ws_dir(&name)?;
+    if !dir.exists() {
+        return Err(AppError::validation("name", "workspace not found"));
+    }
+    let mut manifest = read_manifest(&dir)?;
+    manifest.roles = roles.clone();
+    manifest.cycle_order = cycle_order.to_vec();
+    manifest.updated_at = store::now_ts();
+    let text = serde_json::to_string_pretty(&manifest)?;
+    store::write_atomic(&dir.join(MANIFEST), text.as_bytes())?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests;

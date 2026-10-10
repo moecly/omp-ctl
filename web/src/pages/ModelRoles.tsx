@@ -4,8 +4,9 @@ import { Check, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { useApp } from "../hooks/useApp";
 import { useAsync } from "../hooks/useAsync";
 import { ipc } from "../lib/ipc";
-import { errorText, type Defaults, type ModelRef, type ModelRoles as ModelRolesData } from "../lib/types";
+import { errorText, type Defaults, type ModelRef, type ModelRoles as ModelRolesData, type Preset } from "../lib/types";
 import { joinSelector, splitSelector, THINKING_LEVELS } from "../lib/modelMeta";
+import { loadPreset, savePreset } from "../lib/prefs";
 import { toast } from "../lib/toast";
 import {
   Badge,
@@ -47,19 +48,21 @@ export function ModelRoles() {
   const [newLevel, setNewLevel] = useState("");
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
-
+  const presets = useAsync<Preset[]>(() => ipc.listPresets(), []);
   // Selected preset is the live edit target: every change below writes back
   // to both config.yml and the preset itself.
-  const [target, setTarget] = useState("");
+  const [target, setTarget] = useState(loadPreset);
   const [applying, setApplying] = useState(false);
 
   const select = async (name: string) => {
     setTarget(name);
+    savePreset(name);
     if (!name || applying) return;
     setApplying(true);
     try {
-      await ipc.applyPreset(name);
+      const { workspaceSynced } = await ipc.applyPreset(name);
       toast.success(t.presets.applied, name);
+      if (workspaceSynced) toast.info(t.presets.workspaceSynced, workspaceSynced);
       roles.reload();
     } catch (e) {
       toast.error(t.presets.applied, errorText(e));
@@ -128,6 +131,7 @@ export function ModelRoles() {
   };
 
   const selectors = (refs.data ?? []).map((r) => r.id);
+  const validTarget = !presets.data || presets.data.some((p) => p.name === target) ? target : "";
 
   const entries = Object.entries(roles.data?.roles ?? {});
   const roleNames = new Set(entries.map(([role]) => role));
@@ -165,7 +169,7 @@ export function ModelRoles() {
       {roles.error && <PageError message={roles.error} onRetry={roles.reload} />}
       {refs.error && <PageError message={refs.error} onRetry={refs.reload} />}
 
-      <PresetBar target={target} onSelect={select} />
+      <PresetBar target={validTarget} presets={presets} onSelect={select} />
 
       {roles.loading ? (
         <PageSkeleton rows={4} />
