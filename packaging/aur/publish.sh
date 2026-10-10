@@ -82,6 +82,11 @@ publish_one() {
 
     cp "$src_dir/PKGBUILD" PKGBUILD
 
+    # pkgver/pkgrel 必须先落到文件里再展开 source[0]：URL 里的 $pkgver 由 makepkg 规则展开，
+    # 用仓库里上次发布留下的 pkgver 会下载到旧产物，算出的 sha 也就属于旧版本。
+    grep -q '^sha256sums=' PKGBUILD || { echo "PKGBUILD 没有 sha256sums 行" >&2; return 1; }
+    sed -i -e "s/^pkgver=.*/pkgver=$version/" -e "s/^pkgrel=.*/pkgrel=$pkgrel/" PKGBUILD
+
     # source[0] 就是要发布的产物：源码包是 tag tarball，-bin 是 release 资产（.deb）。
     # 在子 shell 里 source PKGBUILD，让 URL 里的 $pkgver 按 makepkg 的规则展开；
     # `文件名::URL` 形式要把前缀去掉。
@@ -92,12 +97,15 @@ publish_one() {
         http*://*) ;;
         *) echo "PKGBUILD 的 source[0] 不是 HTTP(S) URL：${src_url:-（空）}" >&2; return 1 ;;
     esac
+    # 产物 URL 必须带上本次版本号，否则说明上面的展开仍取到了旧 pkgver
+    case $src_url in
+        *"$version"*) ;;
+        *) echo "source[0] 里没有版本 $version：$src_url" >&2; return 1 ;;
+    esac
 
     local sum
     sum=$(curl -fsSL "$src_url" | sha256sum | cut -d' ' -f1) || { echo "下载 $src_url 失败" >&2; return 1; }
 
-    sed -i -e "s/^pkgver=.*/pkgver=$version/" -e "s/^pkgrel=.*/pkgrel=$pkgrel/" PKGBUILD
-    grep -q '^sha256sums=' PKGBUILD || { echo "PKGBUILD 没有 sha256sums 行" >&2; return 1; }
     sed -i "s/^sha256sums=.*/sha256sums=('$sum')/" PKGBUILD
 
     makepkg --printsrcinfo > .SRCINFO
