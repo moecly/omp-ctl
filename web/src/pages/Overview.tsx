@@ -19,6 +19,8 @@ const LINK_TONE: Record<LinkKind, "ok" | "warn" | "neutral"> = {
 
 export function Overview() {
   const { t } = useApp();
+  const text = (p: { key: string; label: string; description: string }) =>
+    t.prompts.items[p.key as keyof typeof t.prompts.items] ?? { label: p.label, description: p.description };
   const { data, loading, error, reload } = useAsync<OverviewData>(() => ipc.getOverview(), []);
 
   if (loading) {
@@ -170,10 +172,10 @@ export function Overview() {
             <div key={p.key} className="flex items-center gap-3 px-4 py-2.5">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 text-[13px] text-[var(--color-fg)]">
-                  {p.label}
+                  {text(p).label}
                   <Badge tone="neutral">{p.name}</Badge>
                 </div>
-                <div className="truncate text-[12px] text-[var(--color-fg-subtle)]">{p.description}</div>
+                <div className="truncate text-[12px] text-[var(--color-fg-subtle)]">{text(p).description}</div>
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 <Badge tone={p.enabled ? "ok" : "neutral"}>

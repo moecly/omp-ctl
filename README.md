@@ -1,64 +1,86 @@
 # omp-ctl
 
-用于管理 [omp](https://omp.sh) 配置的桌面 GUI（Tauri 2）。
+Desktop GUI (Tauri 2) for managing [omp](https://omp.sh) configuration.
 
-核心设计：`~/.omp-ctl/` 是唯一真实来源（single source of truth），
-`~/.omp/agent/` 下的条目以**符号链接**指向它。
+English | [简体中文](README.zh-CN.md)
 
-* 关闭功能 = 移除链接（内容留在 store，不丢失）
-* 开启功能 = 建立链接
-* 首次接管会把原始文件/链接移动到 `~/.omp-ctl/backup/`，可一键还原
+![Overview](docs/screenshots/overview.png)
 
-## 安装
+## Features
 
-**Arch Linux（AUR）**
+- **Providers & models** (`models.yml`): browse / create / edit / delete providers, edit each provider's model list, probe a provider's `/v1/models`, set any model as default (writes `modelRoles.default` in `config.yml`).
+- **Roles & cycle order** (`config.yml` `modelRoles` + `cycleOrder`): role-to-model mapping rows plus the model cycle order.
+- **Presets** (`presets.yml`): named snapshots of the whole `modelRoles` + `cycleOrder` set. Managed mode — selecting a preset applies the whole set, every later edit writes back to both `config.yml` and the preset, there is no overwrite button. Applying a preset clears the workspace active pointer sync (workspace snapshot follows via `sync_active_roles`).
+- **Workspaces** (`workspaces/<name>/`): snapshots of MCP servers, six resource kinds, four prompt files, roles + cycleOrder + disabledAgents. Save captures the current state, apply overwrites the store wholesale; while a workspace is active, each change command tails `sync_active_quiet()` so the snapshot auto-follows.
+- **MCP servers** (`mcp.json`): add / edit / delete servers plus an enabled switch.
+- **Resources** (skills / agents / hooks / extensions / tools / memory): skills live in `SKILL.md` directory layout, agents/hooks/extensions/tools/memory as files with their own extensions; unmanaged entries can be adopted, foreign ones stay read-only.
+- **Prompts** (`APPEND_SYSTEM.md`, `RULES.md`, `AGENTS.md`, `SYSTEM.md`): independent per-file link switches, editable content, backup restore; unmanaged files go through an adopt flow that never rewrites the external target.
+- **Keybindings** (`keybindings.yml`): 22 built-in actions with chord validation (must end with a key, not a modifier); unknown actions in the file are kept verbatim and remain editable.
+- **Settings**: searchable table grouped into tabs parsed from `omp config list`, with a `configured` mark; set / reset goes through the omp CLI.
+- **Backup & snapshots**: export produces a `migrate-<ts>.tar.gz` under `backup/` covering config, models, mcp.json, keybindings.yml, `.links.json`, managed files and all resource dirs; import stages to a temp dir, refuses symlink entries and empty snapshots. `defaults.yml` / `presets.yml` are omp-ctl's own and are excluded.
+- **Defaults** (`defaults.yml`): defaults applied when creating new models / roles, plus the backup switch `backup: {enabled, keep}` (default off / keep 5).
 
-```sh
-yay -S omp-ctl        # 或 paru -S omp-ctl
-# 不想本地编译（Rust release + LTO，几分钟）就用预编译包：
-yay -S omp-ctl-bin
-```
+## Screenshots
 
-包定义在 [`packaging/aur/`](packaging/aur/)：`omp-ctl` 从源码构建（依赖 `bun` + `cargo`），
-`omp-ctl-bin` 直接展开 release 里的 `.deb`（只支持 `x86_64`）。两者 `provides`/`conflicts` 互斥，装其一。
+![Overview — stat cards, roles, prompts and quick links](docs/screenshots/overview.png)
 
-**其它平台**：从 [Releases](https://github.com/moecly/omp-ctl/releases) 下载 deb / rpm / nsis / msi / dmg。
+![Providers — provider table](docs/screenshots/providers.png)
 
-## 功能
+![Models — model table and default-model selector](docs/screenshots/models.png)
 
-**模型管理（`models.yml`）**
-* 浏览 / 新建 / 编辑 / 删除 provider
-* 编辑每个 provider 的模型列表
-* 探测 provider 的 `/v1/models`（`probe_models`）
-* 将任一模型设为默认（写入 `config.yml` 的 `modelRoles.default`）
-* 编辑时保留原有注释与未建模字段，写前生成 `.bak.<时间戳>` 备份
+![Roles — role mapping, cycle order and preset bar](docs/screenshots/roles.png)
 
-**提示词开关（四个文件）**
-开关通过链接是否存在实现，彼此独立：
+![MCP — server list](docs/screenshots/mcp.png)
 
-| key | 文件 | 风险 |
-| --- | --- | --- |
-| `append_system` | `APPEND_SYSTEM.md` | 低 |
-| `rules` | `RULES.md` | 中 |
-| `agents` | `AGENTS.md` | 中 |
-| `system` | `SYSTEM.md` | 高（替换默认系统提示词） |
+![Tools — built-in tools tab](docs/screenshots/tools.png)
 
-每个文件都可编辑、可还原备份。对非托管条目（普通文件或外部 symlink，例如
-home-manager 生成的 nix-store 链接）会先询问，确认后接管并不修改外部目标。
+![Settings — searchable settings table](docs/screenshots/settings.png)
 
-## 开发
+## Install
+
+**Arch Linux (AUR)** — the two packages are mutually exclusive (`provides`/`conflicts`):
 
 ```sh
-nix develop          # 进入开发环境
-just serve           # 终端 A：在 1420 端口提供 dist/ 静态文件
-just dev             # 终端 B：启动 Tauri 窗口
-just test            # 运行 Rust 测试
-just build           # 构建 release 包
+yay -S omp-ctl      # build from source (needs bun + cargo, several minutes with LTO)
+yay -S omp-ctl-bin  # prebuilt: unpacks the release .deb, x86_64 only
 ```
 
-前端在 `web/`（React + TypeScript + Vite，`just web-build` 产出 `dist/`）。
+Package definitions live in [`packaging/aur/`](packaging/aur/).
 
-## 发布
+**Other platforms**: download from [Releases](https://github.com/moecly/omp-ctl/releases) — `.exe` (NSIS) / `.msi` on Windows, `.dmg` / `.app.tar.gz` on macOS, `.deb` / `.rpm` on Linux. AppImage is only produced by a local `just build`, CI does not ship it.
+
+## Core concepts
+
+`~/.omp-ctl/` is the single source of truth; entries under `~/.omp/agent/` are symlinks pointing into it.
+
+Link state is a tri-state, not on/off (`Absent` / `Managed` / `Unmanaged`): config and models are resident files, so "disabled" still has content in the store.
+
+- Disabling a feature removes the link; the content stays in the store, nothing is lost.
+- Enabling a feature creates the link.
+- First-time adoption copies the entity into the store and moves the original into `~/.omp-ctl/backup/` (recorded in `.links.json`); restore moves it back, keeping the store copy.
+
+## Development
+
+`just dev` starts the Tauri window; its `beforeDevCommand` launches Vite automatically. Do NOT open a second `just serve` alongside it — `strictPort: 1420` will conflict. `just serve` is for frontend-only debugging.
+
+| Command | What it does |
+|---|---|
+| `nix develop` | Enter the dev shell (rust-overlay + Tauri/WebKit deps) |
+| `just web-install` | `cd web && bun install` |
+| `just web-check` | Frontend type check (`tsc --noEmit`) |
+| `just web-build` | Build frontend into `dist/` |
+| `just serve` | Vite on port 1420, frontend only |
+| `just dev` | Tauri window (Vite starts automatically) |
+| `just check-rust` | `cargo check` |
+| `just test` | Rust tests |
+| `just build` | `cargo tauri build` (also emits AppImage locally) |
+| `just fmt-rust` | `cargo fmt` |
+
+On Wayland with garbled WebKit rendering: `WEBKIT_DISABLE_DMABUF_RENDERER=1 GDK_BACKEND=x11` (already baked into `just dev`).
+
+Frontend lives in `web/` (React + TypeScript + Vite + Tailwind v4, `bun` for deps).
+
+## Release
 
 1. 升版本号，共四处但只有前两处要手改：
    * `src-tauri/Cargo.toml` 的 `version`
@@ -69,11 +91,11 @@ just build           # 构建 release 包
      `cargo check` 或任意不带 `--locked` 的 cargo 命令都会顺手刷新它。
    * `packaging/aur/*/PKGBUILD` 不用动：`publish.sh` 按 tag 重写 `pkgver`/`pkgrel`/`sha256sums`，
      发布成功后还会把改写结果**写回仓库**，所以仓库里的 PKGBUILD 永远等于 AUR 上的版本。
-2. 打 tag 并推送：`git tag v0.6.0 && git push origin v0.6.0`。
+2. 打 tag 并推送：`git tag v0.8.1 && git push origin v0.8.1`。
    **tag 必须打在包含 `packaging/aur/` 最新内容的提交上**：`aur` job 用的是 tag 树里的
    包定义与 `publish.sh`，打在旧提交上会拿旧脚本发布（0.7.0 就这么丢过 `omp-ctl-bin`，
    而且发出的 `omp-ctl` 是缺 `custom-protocol` 的旧 PKGBUILD 编出来的）。
-3. `release.yml` 的 `release` job 在三平台打包并建出 GitHub Release（deb / rpm / nsis+msi / app+dmg）。
+3. `release.yml` 的 `release` job 在三平台打包并建出 GitHub Release（deb / rpm / nsis+msi / app+dmg，CI 不出 AppImage；本地 `just build` 会额外产出 AppImage）。
 4. 同一个 workflow 的 `aur` job（`needs: release`）在 Arch 容器里对
    `packaging/aur/` 下的每个包各跑一次 `publish.sh <tag> 1 <包名>`（matrix + `fail-fast: false`，
    一个包失败不影响另一个），把 PKGBUILD 与 .SRCINFO 推到 AUR。
@@ -83,8 +105,8 @@ just build           # 构建 release 包
 手动补发（本地，用 `~/.ssh/aur`，`AUR_KEY_FILE` 可改）：
 
 ```sh
-packaging/aur/publish.sh v0.6.0              # 全部包，pkgrel=1
-packaging/aur/publish.sh v0.6.0 2 omp-ctl    # 只发 omp-ctl，pkgrel=2（同版本重打包）
+packaging/aur/publish.sh v0.8.1              # 全部包，pkgrel=1
+packaging/aur/publish.sh v0.8.1 2 omp-ctl    # 只发 omp-ctl，pkgrel=2（同版本重打包）
 ```
 
 本地 `makepkg` 手动试打（在 `packaging/aur/omp-ctl/` 里复制 PKGBUILD 到空目录再 `makepkg -f`）
@@ -106,30 +128,37 @@ suspended、账户已设密码。`Permission denied (publickey)` 必然是不满
 配置无关。`publish.sh` 每次运行先打印所用私钥指纹并校验私钥可用；CI 另有一页直接探测
 `aur@aur.archlinux.org` 的认证，失败时用 `::error::` 指出上述原因。
 
-## 目录结构
+## Layout
 
 ```
 ~/.omp-ctl/
-├── models.yml            # 托管后的真实文件
+├── models.yml            # managed real file
 ├── config.yml
+├── mcp.json
+├── keybindings.yml
+├── defaults.yml          # omp-ctl's own, not snapshotted
+├── presets.yml           # omp-ctl's own, not snapshotted
 ├── SYSTEM.md  APPEND_SYSTEM.md  AGENTS.md  RULES.md
-├── .links.json           # 托管记录（原目标、备份名）
-└── backup/               # 接管前的原始条目
-    └── models.yml.1790832129
+├── models.yml.bak.<ts>   # co-located pre-write backups (when enabled)
+├── .links.json           # adoption records (original target, backup name)
+├── workspaces/<name>/    # per-workspace snapshots + workspace.json
+└── backup/               # adopted originals + migrate-*.tar.gz snapshots
 ```
 
-`~/.omp/agent/` 中的对应条目为指向上述文件的 symlink。
+Entries under `~/.omp/agent/` are symlinks to the files above.
 
-## agent 目录解析顺序
+## Agent dir resolution
 
 1. `omp config path`
 2. `PI_CODING_AGENT_DIR`
-3. `OMP_PROFILE` / `PI_PROFILE`（跳过 `default`、`blank`）
-4. `$XDG_DATA_HOME/omp/agent`（仅当目录存在）
+3. `OMP_PROFILE` / `PI_PROFILE` (skipping `default`, `blank`)
+4. `$XDG_DATA_HOME/omp/agent` (only if the dir exists)
 5. `$HOME/.omp/agent`
 
-## 写盘策略
+The resolved dir is cached in-process via `OnceLock` (uncached under `cfg(test)`). Integration tests run against a real agent dir and self-skip when none resolves.
 
-* 所有写入先备份为 `<文件>.bak.<unix 时间戳>`
-* 使用临时文件 + `rename` 原子替换
-* YAML 采用行区间替换，只改动目标块
+## Write policy
+
+- Pre-write backups go through `backup_file` and are gated by `backup.enabled` (**default OFF**); `keep` defaults to 5, clamped to 0–100, older `.bak.<ts>` siblings pruned.
+- All writes use tmp-file + `rename` atomic replacement (`store::write_atomic`).
+- YAML edits are row-range replacements (`yaml.rs`) that preserve comments and unmodeled fields.

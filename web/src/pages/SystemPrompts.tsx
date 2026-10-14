@@ -21,6 +21,8 @@ import { PageContainer } from "../components/shell/PageContainer";
 
 export function SystemPrompts() {
   const { t } = useApp();
+  const text = (p: PromptState) =>
+    t.prompts.items[p.key as keyof typeof t.prompts.items] ?? { label: p.label, description: p.description };
   const { data, loading, error, reload } = useAsync<PromptState[]>(() => ipc.listPrompts(), []);
   const [selected, setSelected] = useState<string | null>(null);
   const [content, setContent] = useState("");
@@ -44,7 +46,7 @@ export function SystemPrompts() {
     setBusy(true);
     try {
       const next = await ipc.setPromptEnabled(p.key, enabled);
-      toast.success(enabled ? t.common.enabled : t.common.disabled, next.label);
+      toast.success(enabled ? t.common.enabled : t.common.disabled, text(next).label);
       reload();
     } catch (e) {
       toast.error(t.common.save, errorText(e));
@@ -58,7 +60,7 @@ export function SystemPrompts() {
     setBusy(true);
     try {
       await ipc.writePrompt(current.key, content);
-      toast.success(t.prompts.saveContent, current.label);
+      toast.success(t.prompts.saveContent, text(current).label);
       setDirty(false);
       reload();
     } catch (e) {
@@ -126,10 +128,10 @@ export function SystemPrompts() {
               />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5 text-[13px] text-[var(--color-fg)]">
-                  <span className="truncate">{p.label}</span>
+                  <span className="truncate">{text(p).label}</span>
                   {p.hasBackup && <Badge tone="warn">{t.common.backup}</Badge>}
                 </div>
-                <div className="truncate text-[11px] text-[var(--color-fg-subtle)]">{p.description}</div>
+                <div className="truncate text-[11px] text-[var(--color-fg-subtle)]">{text(p).description}</div>
               </div>
               <span onClick={(e) => e.stopPropagation()}>
                 <Switch
@@ -137,7 +139,7 @@ export function SystemPrompts() {
                   disabled={busy}
                   onChange={(v) => {
                     if (p.link === "unmanaged") {
-                      toast.warn(p.label, t.resources.foreignHint);
+                      toast.warn(text(p).label, t.resources.foreignHint);
                       return;
                     }
                     setConfirm({ kind: "toggle", prompt: p });
@@ -152,7 +154,7 @@ export function SystemPrompts() {
         {current && (
           <div className="flex min-w-0 flex-1 flex-col">
             <div className="flex items-center gap-2 border-b border-[var(--color-border)] px-4 py-2.5">
-              <span className="text-[13px] font-medium text-[var(--color-fg)]">{current.label}</span>
+              <span className="text-[13px] font-medium text-[var(--color-fg)]">{text(current).label}</span>
               <Badge tone={current.enabled ? "ok" : "neutral"}>
                 {current.enabled ? t.common.enabled : t.common.disabled}
               </Badge>
@@ -209,11 +211,11 @@ export function SystemPrompts() {
         title={confirm?.kind === "restore" ? t.common.restore : t.common.confirm}
         message={
           confirm?.kind === "restore"
-            ? t.prompts.restoreConfirm.replace("{name}", confirm.prompt.label)
+            ? t.prompts.restoreConfirm.replace("{name}", confirm && text(confirm.prompt).label)
             : confirm
               ? (confirm.prompt.enabled ? t.prompts.disableConfirm : t.prompts.enableConfirm).replace(
                   "{name}",
-                  confirm.prompt.label,
+                  confirm && text(confirm.prompt).label,
                 )
               : ""
         }
@@ -226,7 +228,7 @@ export function SystemPrompts() {
           if (c.kind === "restore") {
             try {
               await ipc.restorePromptBackup(c.prompt.key);
-              toast.success(t.common.restore, c.prompt.label);
+              toast.success(t.common.restore, text(c.prompt).label);
               reload();
             } catch (e) {
               toast.error(t.common.restore, errorText(e));

@@ -1,6 +1,11 @@
 export const LOCALES = ["zh", "en"] as const;
 export type Locale = (typeof LOCALES)[number];
 
+export interface PromptText {
+  label: string;
+  description: string;
+}
+
 export interface Strings {
   appName: string;
   groups: { config: string; resources: string; system: string };
@@ -212,6 +217,12 @@ export interface Strings {
     restoreConfirm: string;
     enableConfirm: string;
     disableConfirm: string;
+    items: {
+      append_system: PromptText;
+      rules: PromptText;
+      agents: PromptText;
+      system: PromptText;
+    };
   };
   resources: {
     attach: string;
@@ -517,6 +528,24 @@ const zh: Strings = {
     restoreConfirm: "确定用备份覆盖 {name} 的当前内容？",
     enableConfirm: "确定启用 {name}？",
     disableConfirm: "确定停用 {name}？",
+    items: {
+      append_system: {
+        label: "追加系统提示词",
+        description: "追加到默认系统提示词之后，保留内置工具与工作流指导。",
+      },
+      rules: {
+        label: "硬性规则",
+        description: "常驻规则，每次请求都会随上下文携带。",
+      },
+      agents: {
+        label: "用户级全局上下文",
+        description: "全局 AGENTS.md，对所有项目生效。",
+      },
+      system: {
+        label: "替换系统提示词",
+        description: "整块替换默认系统提示词，会丢失内置工具与工作流指导。",
+      },
+    },
   },
   resources: {
     attach: "启用",
@@ -822,6 +851,24 @@ const en: Strings = {
     restoreConfirm: "Overwrite {name} with its backup?",
     enableConfirm: "Enable {name}?",
     disableConfirm: "Disable {name}?",
+    items: {
+      append_system: {
+        label: "Append system prompt",
+        description: "Appended after the default system prompt; keeps built-in tools and workflow guidance.",
+      },
+      rules: {
+        label: "Hard rules",
+        description: "Always attached to every request context.",
+      },
+      agents: {
+        label: "Global user context",
+        description: "Global AGENTS.md applying to all projects.",
+      },
+      system: {
+        label: "Replace system prompt",
+        description: "Replaces the default system prompt wholesale; loses built-in tools and workflow guidance.",
+      },
+    },
   },
   resources: {
     attach: "Enable",
