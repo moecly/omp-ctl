@@ -264,7 +264,11 @@ fn apply_manifest(manifest: &Manifest, dir: &Path) -> Result<()> {
     for spec in prompts::PROMPTS {
         let snap = dir.join(spec.name);
         let store_path = store.join(spec.name);
-        let enabled = manifest.prompts_enabled.get(spec.key).copied().unwrap_or(false);
+        let enabled = manifest
+            .prompts_enabled
+            .get(spec.key)
+            .copied()
+            .unwrap_or_else(|| snap.exists());
         if snap.exists() {
             if enabled {
                 store::adopt(&agent, spec.name)?;
@@ -322,29 +326,35 @@ fn apply_manifest(manifest: &Manifest, dir: &Path) -> Result<()> {
                 }
             }
         }
+        if let Ok(entries) = fs::read_dir(&snap_sub) {
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().into_owned();
+                if !names.contains(&name) {
+                    names.push(name);
+                }
+            }
+        }
         for name in names {
             let rel = format!("{}/{}", spec.agent_sub, name);
+            let snap_item = snap_sub.join(&name);
             let should = wanted
                 .and_then(|w| w.get(&name))
                 .copied()
-                .unwrap_or(false);
+                .unwrap_or_else(|| snap_item.exists());
             let state = store::link_state_rel(&agent, &rel)?;
             if should {
                 if state.kind != store::LinkKind::Managed && store.join(&rel).exists() {
                     let _ = store::adopt_rel(&agent, &rel);
                 }
-                if state.kind == store::LinkKind::Unmanaged {
-                    let snap_item = snap_sub.join(&name);
-                    if snap_item.exists() {
-                        let store_item = store_sub.join(&name);
-                        if snap_item.is_dir() {
-                            remove_if_exists(&store_item)?;
-                            copy_dir_all(&snap_item, &store_item)?;
-                        } else {
-                            let bytes = fs::read(&snap_item)
-                                .map_err(|e| AppError::fs(&snap_item, e.to_string()))?;
-                            store::write_atomic(&store_item, &bytes)?;
-                        }
+                if state.kind == store::LinkKind::Unmanaged && snap_item.exists() {
+                    let store_item = store_sub.join(&name);
+                    if snap_item.is_dir() {
+                        remove_if_exists(&store_item)?;
+                        copy_dir_all(&snap_item, &store_item)?;
+                    } else {
+                        let bytes = fs::read(&snap_item)
+                            .map_err(|e| AppError::fs(&snap_item, e.to_string()))?;
+                        store::write_atomic(&store_item, &bytes)?;
                     }
                 }
             } else if state.kind == store::LinkKind::Managed {
@@ -431,7 +441,7 @@ pub fn repair_active() -> Result<bool> {
             .prompts_enabled
             .get(spec.key)
             .copied()
-            .unwrap_or(false);
+            .unwrap_or_else(|| dir.join(spec.name).exists());
         changed |= heal_entry(
             &agent,
             &dir.join(spec.name),
@@ -453,6 +463,11 @@ pub fn repair_active() -> Result<bool> {
                 names.insert(entry.file_name().to_string_lossy().into_owned());
             }
         }
+        if let Ok(entries) = fs::read_dir(&store_sub) {
+            for entry in entries.flatten() {
+                names.insert(entry.file_name().to_string_lossy().into_owned());
+            }
+        }
         if let Some(wanted) = manifest.resources_enabled.get(spec.id) {
             names.extend(wanted.keys().cloned());
         }
@@ -462,7 +477,7 @@ pub fn repair_active() -> Result<bool> {
                 .get(spec.id)
                 .and_then(|w| w.get(&name))
                 .copied()
-                .unwrap_or(false);
+                .unwrap_or_else(|| snap_sub.join(&name).exists() || store_sub.join(&name).exists());
             changed |= heal_entry(
                 &agent,
                 &snap_sub.join(&name),

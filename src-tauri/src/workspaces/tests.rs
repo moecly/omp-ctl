@@ -278,3 +278,72 @@ fn apply_overrides_foreign_resource_with_snapshot() {
         "# demo\n"
     );
 }
+
+#[test]
+fn repair_active_links_snapshot_resource_missing_from_manifest() {
+    let _sb = setup_state();
+    let agent = paths::agent_dir().unwrap();
+    create("A").unwrap();
+
+    let snap = ws_dir("A").unwrap().join("extensions/rtk.ts");
+    fs::create_dir_all(snap.parent().unwrap()).unwrap();
+    fs::write(&snap, "export default {};\n").unwrap();
+
+    assert!(repair_active().unwrap());
+    assert_eq!(
+        store::link_state_rel(&agent, "extensions/rtk.ts")
+            .unwrap()
+            .kind,
+        store::LinkKind::Managed
+    );
+    assert_eq!(
+        fs::read_to_string(agent.join("extensions/rtk.ts")).unwrap(),
+        "export default {};\n"
+    );
+}
+
+#[test]
+fn apply_links_snapshot_resource_missing_from_manifest() {
+    let _sb = setup_state();
+    let agent = paths::agent_dir().unwrap();
+    create("A").unwrap();
+
+    let snap = ws_dir("A").unwrap().join("extensions/rtk.ts");
+    fs::create_dir_all(snap.parent().unwrap()).unwrap();
+    fs::write(&snap, "export default {};\n").unwrap();
+
+    apply("A").unwrap();
+    assert_eq!(
+        store::link_state_rel(&agent, "extensions/rtk.ts")
+            .unwrap()
+            .kind,
+        store::LinkKind::Managed
+    );
+    assert_eq!(
+        fs::read_to_string(agent.join("extensions/rtk.ts")).unwrap(),
+        "export default {};\n"
+    );
+}
+
+#[test]
+fn repair_active_links_store_resource_missing_from_snapshot() {
+    let sb = setup_state();
+    let agent = paths::agent_dir().unwrap();
+    create("A").unwrap();
+
+    let stored = sb.root.join(".omp-ctl/extensions/rtk.ts");
+    fs::create_dir_all(stored.parent().unwrap()).unwrap();
+    fs::write(&stored, "export default {};\n").unwrap();
+
+    assert!(repair_active().unwrap());
+    assert_eq!(
+        store::link_state_rel(&agent, "extensions/rtk.ts")
+            .unwrap()
+            .kind,
+        store::LinkKind::Managed
+    );
+    assert_eq!(
+        fs::read_to_string(agent.join("extensions/rtk.ts")).unwrap(),
+        "export default {};\n"
+    );
+}
