@@ -6,6 +6,7 @@ import { useAsync } from "../hooks/useAsync";
 import { ipc } from "../lib/ipc";
 import { errorText, type ModelRef, type Provider } from "../lib/types";
 import { toast } from "../lib/toast";
+import { thinkingLabel } from "../lib/modelMeta";
 import { Badge, Button, EmptyState, SearchInput, Select } from "../components/ui";
 import { PageError, PageSkeleton } from "../components/ui/PageState";
 import { PageContainer } from "../components/shell/PageContainer";
@@ -152,7 +153,9 @@ export function Models() {
                   {r.model.maxTokens?.toLocaleString() ?? "—"}
                 </td>
                 <td className="font-mono text-[12px] text-[var(--color-fg-subtle)]">
-                  {r.model.thinkingLevel ?? "—"}
+                  {thinkingLabel(r.model.thinking?.mode, r.model.thinking?.efforts) ||
+                    refs.data?.find((x) => x.id === `${r.provider}/${r.model.id}`)?.thinking?.join("/") ||
+                    "—"}
                 </td>
                 <td>
                   <div className="flex items-center justify-end gap-2">

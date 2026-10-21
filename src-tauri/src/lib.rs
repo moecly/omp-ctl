@@ -93,22 +93,15 @@ fn get_provider(id: String) -> Result<Option<Provider>> {
 #[tauri::command]
 fn list_model_refs() -> Result<Vec<ModelRef>> {
     models::ensure_linked()?;
-    let mut out = Vec::new();
-    for p in models::load_providers()? {
-        for m in p.models {
-            out.push(ModelRef {
-                id: format!("{}/{}", p.id, m.id),
-                name: m.name,
-                thinking: Vec::new(),
-            });
-        }
-    }
-    Ok(out)
+    models::list_refs()
 }
 
 #[tauri::command]
-fn upsert_provider(provider: Provider) -> Result<SaveResult> {
+fn upsert_provider(mut provider: Provider) -> Result<SaveResult> {
     models::validate(&provider)?;
+    if defaults::read().map(|d| d.enable_max_thinking).unwrap_or(false) {
+        models::ensure_max_levels(&mut provider);
+    }
     let before = models::provider_ids()?;
     let existed = before.iter().any(|id| id == &provider.id);
     models::save_provider(&provider)?;
@@ -455,7 +448,17 @@ fn get_defaults() -> Result<Defaults> {
 
 #[tauri::command]
 fn set_defaults(defaults: Defaults) -> Result<Defaults> {
-    defaults::write(&defaults)
+    let was_enabled = defaults::read()
+        .map(|d| d.enable_max_thinking)
+        .unwrap_or(false);
+    let out = defaults::write(&defaults)?;
+    if out.enable_max_thinking && !was_enabled {
+        for mut provider in models::load_providers()? {
+            models::ensure_max_levels(&mut provider);
+            models::save_provider(&provider)?;
+        }
+    }
+    Ok(out)
 }
 
 #[tauri::command]

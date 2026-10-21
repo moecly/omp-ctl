@@ -30,6 +30,13 @@ export interface LinkStateRow {
   target: string | null;
 }
 
+export interface ThinkingConfig {
+  mode: string;
+  efforts: string[];
+  defaultLevel?: string;
+  requiresEffort?: boolean;
+}
+
 export interface ModelEntry {
   id: string;
   name?: string;
@@ -38,7 +45,7 @@ export interface ModelEntry {
   imageInput: boolean;
   contextWindow?: number;
   maxTokens?: number;
-  thinkingLevel?: string;
+  thinking?: ThinkingConfig;
   raw: Json;
 }
 
@@ -158,7 +165,6 @@ export interface ModelDefaults {
   imageInput: boolean;
   contextWindow?: number;
   maxTokens?: number;
-  thinkingLevel?: string;
 }
 
 export interface BackupSettings {
@@ -169,6 +175,7 @@ export interface BackupSettings {
 export interface Defaults {
   model: ModelDefaults;
   roleThinkingLevel?: string;
+  enableMaxThinking: boolean;
   backup: BackupSettings;
 }
 

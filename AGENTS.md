@@ -63,8 +63,10 @@ packaging/aur/           AUR 包：每个包一个子目录（omp-ctl 源码构�
 * 测试若改动 `$HOME`/环境变量，必须持有 `crate::SANDBOX_LOCK`。
 * 默认值存 `~/.omp-ctl/defaults.yml`、预设存 `~/.omp-ctl/presets.yml`，均为 omp-ctl 自有功能，不写 `config.yml`（避免 omp 读到未知键），不进快照。默认值 UI 在「设置」页首个 Tab「omp-ctl」（`components/settings/`）；预设是 modelRoles+cycleOrder 的快照，UI 在「模型角色」页顶部工具条（`components/roles/PresetBar`），不单独占导航项。
 * 默认模型只由「模型」页维护（`modelRoles.default`）；「omp-ctl」Tab 不再重复提供该选择器。
+* 模型可选思考等级只来自 `omp models --json` 的 `thinking`；要让 `max` 可选必须在模型条目写 `thinking: { mode, efforts }`（`mode` 必填）。`thinkingLevelMap` 被 omp 忽略，不再写入（已有内容原样保留）。设置页的「自动为推理模型启用 max」开启并保存后会立即应用到全部服务商，之后每次保存服务商也会把 `max` 并入所有 reasoning 模型的 `thinking.efforts`（保留现有 `mode`/`defaultLevel`/未知键，无显式配置时按 API 推断 `mode`，等级取目录实际值、失败回退默认阶梯）。
 * 预设是受管模式：下拉选中即整套替换应用，此后页面上的每次改动同时写回 `config.yml` 和该预设（`save_preset` 逐次同步 `modelRoles` + `cycleOrder`）。预设条只有「新建」，没有「覆盖」按钮；未选中任何预设时只写 `config.yml`。
 * `keybindings.yml` 与 `config.yml`/`mcp.json` 同为接管对象；action 表是内置静态表，未知 action 原样保留可编辑（`known: false`），不改动文件里已有的未知键。
+* 工作区在应用启动和 `list_workspaces` 时调用 `repair_active()` 自动修复当前激活工作区的断链：只补链接、恢复缺失的 store 文件，不重放 roles/config；快照或 store 中存在但 manifest 未记录的条目按启用处理，显式 `false` 仍不链接。
 * AUR 包定义只有 `packaging/aur/<包名>/PKGBUILD` 一份，本地与 CI 都走 `publish.sh <tag> [pkgrel] [包名...]`：它按 tag 重写 `pkgver`/`pkgrel`/`sha256sums`（sha 取 `source[0]` 的下载结果）、用 `makepkg --printsrcinfo` 生成 `.SRCINFO`，推送成功后**把改写结果写回仓库**，所以仓库里的 PKGBUILD 始终等于 AUR 上的版本。不带包名参数就发布全部包（CI 的 matrix 每次只传一个，一个失败不影响另一个）。不要手改 AUR 仓库内容。
 * AUR 的 `omp-ctl` 与 `omp-ctl-bin` 都必须在 PKGBUILD 里带 `--features tauri/custom-protocol`（前者是 `cargo build` 参数，后者是 CI 打包产物天然具备）：`tauri::is_dev() = !cfg!(feature = "custom-protocol")`，缺了它二进制去连 `devUrl`（127.0.0.1:1420），装完打开就是一个连不上的窗口。同理，本地 `cargo tauri build` 不要手写 `cargo build` 代替。
 * 升版本号要改 `src-tauri/Cargo.toml` + `src-tauri/tauri.conf.json` + 刷新并提交 `Cargo.lock`；漏提交 lock 会让 AUR 的 `cargo build --locked` 失败。

@@ -13,6 +13,7 @@ import { PageError, PageSkeleton } from "../ui/PageState";
 const BLANK: DefaultsData = {
   model: { reasoning: false, imageInput: false },
   roleThinkingLevel: undefined,
+  enableMaxThinking: false,
   backup: { enabled: false, keep: 5 },
 };
 
@@ -33,9 +34,9 @@ export function DefaultsPanel() {
           imageInput: sm.imageInput ?? false,
           contextWindow: sm.contextWindow,
           maxTokens: sm.maxTokens,
-          thinkingLevel: sm.thinkingLevel,
         },
         roleThinkingLevel: src.roleThinkingLevel,
+        enableMaxThinking: src.enableMaxThinking ?? false,
         backup: { enabled: src.backup?.enabled ?? false, keep: src.backup?.keep ?? 5 },
       });
     }
@@ -117,19 +118,6 @@ export function DefaultsPanel() {
                   {md.api && !API_PRESETS.includes(md.api) && <option value="__custom">{md.api}</option>}
                 </Select>
               </Field>
-              <Field label={t.defaults.thinkingLevel} hint={t.defaults.thinkingLevelHint}>
-                <Select
-                  value={md.thinkingLevel ?? ""}
-                  onChange={(e) => patchModel({ thinkingLevel: e.target.value || undefined })}
-                >
-                  <option value="">{t.models.unset}</option>
-                  {THINKING_LEVELS.map((l) => (
-                    <option key={l} value={l}>
-                      {l}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
               <Field label={t.defaults.contextWindow}>
                 <Input
                   type="number"
@@ -159,6 +147,17 @@ export function DefaultsPanel() {
                 {t.defaults.imageInput}
               </label>
             </div>
+          </div>
+
+          <div className="flex flex-col gap-4 border-t border-[var(--color-border)] pt-4">
+            <h3 className="text-[13px] font-medium text-[var(--color-fg-muted)]">{t.defaults.thinkingTitle}</h3>
+            <Field label={t.defaults.enableMaxThinking} hint={t.defaults.enableMaxThinkingHint}>
+              <Switch
+                checked={draft.enableMaxThinking}
+                onChange={(v) => setDraft((d) => ({ ...d, enableMaxThinking: v }))}
+                label={t.defaults.enableMaxThinking}
+              />
+            </Field>
           </div>
 
           <div className="flex flex-col gap-4 border-t border-[var(--color-border)] pt-4">

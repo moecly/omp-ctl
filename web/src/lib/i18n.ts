@@ -164,6 +164,11 @@ export interface Strings {
     reasoning: string;
     imageInput: string;
     thinkingLevel: string;
+    thinkingMode: string;
+    thinkingEfforts: string;
+    thinkingDefaultLevel: string;
+    thinkingDefault: string;
+    thinkingHint: string;
     unset: string;
   };
   roles: {
@@ -186,10 +191,11 @@ export interface Strings {
     api: string;
     contextWindow: string;
     maxTokens: string;
-    thinkingLevel: string;
-    thinkingLevelHint: string;
     reasoning: string;
     imageInput: string;
+    thinkingTitle: string;
+    enableMaxThinking: string;
+    enableMaxThinkingHint: string;
     save: string;
     backupTitle: string;
     backupEnabled: string;
@@ -477,6 +483,12 @@ const zh: Strings = {
     reasoning: "推理",
     imageInput: "图像输入",
     thinkingLevel: "思考等级",
+    thinkingMode: "传输模式",
+    thinkingEfforts: "支持的等级",
+    thinkingDefaultLevel: "该模型默认等级",
+    thinkingDefault: "继承 omp 默认",
+    thinkingHint:
+      "不勾选任何等级则删除 thinking，沿用 omp 自动推断；勾选后写入 thinking.efforts，omp 才会允许角色选择这些等级。max 只有在这里勾选后才可选。",
     unset: "未设置",
   },
   roles: {
@@ -499,10 +511,12 @@ const zh: Strings = {
     api: "API 协议",
     contextWindow: "上下文窗口",
     maxTokens: "最大输出",
-    thinkingLevel: "新增模型条目默认思考等级",
-    thinkingLevelHint: "新增模型条目未指定等级时套用",
     reasoning: "推理模型",
     imageInput: "支持图片",
+    thinkingTitle: "思考等级",
+    enableMaxThinking: "自动为推理模型启用 max",
+    enableMaxThinkingHint:
+      "开启并保存后立即应用到全部服务商；之后每次保存服务商都会把 max 并入所有推理模型的 thinking.efforts。无显式配置时按 API 推断 mode。关闭不会移除已写入的等级。",
     save: "保存默认值",
     backupTitle: "备份",
     backupEnabled: "启用写前备份（默认关闭）",
@@ -801,7 +815,13 @@ const en: Strings = {
     maxTokens: "Max output",
     reasoning: "Reasoning",
     imageInput: "Image input",
-    thinkingLevel: "Thinking level",
+    thinkingLevel: "Thinking levels",
+    thinkingMode: "Transport mode",
+    thinkingEfforts: "Supported levels",
+    thinkingDefaultLevel: "Model default level",
+    thinkingDefault: "Inherit omp default",
+    thinkingHint:
+      "With no level selected the thinking block is removed and omp infers defaults. Selecting levels writes thinking.efforts, which is what makes them selectable for roles. max only appears there once enabled here.",
     unset: "Unset",
   },
   roles: {
@@ -824,10 +844,12 @@ const en: Strings = {
     api: "API protocol",
     contextWindow: "Context window",
     maxTokens: "Max output",
-    thinkingLevel: "Default thinking level for new model entries",
-    thinkingLevelHint: "Applied to new model entries without an explicit level",
     reasoning: "Reasoning model",
     imageInput: "Image input",
+    thinkingTitle: "Thinking levels",
+    enableMaxThinking: "Auto-enable max for reasoning models",
+    enableMaxThinkingHint:
+      "Enabling and saving applies it to every provider immediately; later provider saves also merge max into thinking.efforts of all reasoning models. Without an explicit config the mode is inferred from the API. Turning it off does not remove levels already written.",
     save: "Save defaults",
     backupTitle: "Backups",
     backupEnabled: "Enable pre-write backups (off by default)",

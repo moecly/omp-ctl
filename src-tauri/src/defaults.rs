@@ -13,7 +13,6 @@ pub struct ModelDefaults {
     pub image_input: bool,
     pub context_window: Option<u64>,
     pub max_tokens: Option<u64>,
-    pub thinking_level: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -43,6 +42,8 @@ impl Default for BackupSettings {
 pub struct Defaults {
     pub model: ModelDefaults,
     pub role_thinking_level: Option<String>,
+    #[serde(default)]
+    pub enable_max_thinking: bool,
     #[serde(default)]
     pub backup: BackupSettings,
 }

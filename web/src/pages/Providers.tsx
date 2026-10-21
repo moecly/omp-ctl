@@ -4,8 +4,23 @@ import { Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { useApp } from "../hooks/useApp";
 import { useAsync } from "../hooks/useAsync";
 import { ipc } from "../lib/ipc";
-import { errorText, type CatalogModel, type Defaults, type ModelEntry, type Provider, type ProviderSummary } from "../lib/types";
-import { API_PRESETS, THINKING_LEVELS } from "../lib/modelMeta";
+import {
+  errorText,
+  type CatalogModel,
+  type Defaults,
+  type ModelEntry,
+  type ModelRef,
+  type Provider,
+  type ProviderSummary,
+  type ThinkingConfig,
+} from "../lib/types";
+import {
+  API_PRESETS,
+  THINKING_EFFORTS,
+  THINKING_MODES,
+  thinkingLabel,
+  thinkingModeFor,
+} from "../lib/modelMeta";
 import { toast } from "../lib/toast";
 import { cn } from "../lib/cn";
 import { scanRows } from "../lib/scanRows";
@@ -226,9 +241,30 @@ function ProviderForm({
   const [catalog, setCatalog] = useState<CatalogModel[]>([]);
   const [probedIds, setProbedIds] = useState<string[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
+  const [thinkEdit, setThinkEdit] = useState<{ index: number; config: ThinkingConfig } | null>(null);
 
   const defaults = useAsync<Defaults>(() => ipc.getDefaults(), []);
+  const refs = useAsync<ModelRef[]>(() => ipc.listModelRefs(), []);
   const md = defaults.data?.model;
+
+  const openThinking = async (index: number) => {
+    const m = draft.models[index];
+    let effective = refs.data?.find((r) => r.id === `${originalId ?? draft.id}/${m.id}`)?.thinking;
+    if (!m.thinking && !effective) {
+      try {
+        const all = await ipc.listModelRefs();
+        effective = all.find((r) => r.id === `${originalId ?? draft.id}/${m.id}`)?.thinking;
+      } catch {
+        effective = undefined;
+      }
+    }
+    setThinkEdit({
+      index,
+      config: m.thinking
+        ? { ...m.thinking, efforts: [...m.thinking.efforts] }
+        : { mode: thinkingModeFor(m.api ?? draft.api), efforts: [...(effective ?? [])] },
+    });
+  };
 
   const blankModel = (): ModelEntry =>
     ({
@@ -238,7 +274,6 @@ function ProviderForm({
       imageInput: md?.imageInput ?? false,
       contextWindow: md?.contextWindow,
       maxTokens: md?.maxTokens,
-      thinkingLevel: md?.thinkingLevel || undefined,
       raw: {},
     }) as ModelEntry;
 
@@ -313,7 +348,6 @@ function ProviderForm({
           imageInput: c ? c.imageInput : (md?.imageInput ?? false),
           contextWindow: c?.contextWindow ?? md?.contextWindow,
           maxTokens: c?.maxTokens ?? md?.maxTokens,
-          thinkingLevel: (c?.thinking?.length ? c.thinking[0] : undefined) ?? (md?.thinkingLevel || undefined),
           raw: {},
         } as ModelEntry;
       });
@@ -333,6 +367,30 @@ function ProviderForm({
     );
 
   const apiCustom = !API_PRESETS.includes(draft.api);
+
+  const toggleEffort = (level: string) =>
+    setThinkEdit((edit) => {
+      if (!edit) return edit;
+      const has = edit.config.efforts.includes(level);
+      const efforts = has
+        ? edit.config.efforts.filter((e) => e !== level)
+        : THINKING_EFFORTS.filter((e) => [...edit.config.efforts, level].includes(e));
+      const defaultLevel = edit.config.defaultLevel && efforts.includes(edit.config.defaultLevel)
+        ? edit.config.defaultLevel
+        : undefined;
+      return { ...edit, config: { ...edit.config, efforts, defaultLevel } };
+    });
+
+  const commitThinking = () => {
+    if (!thinkEdit) return;
+    const config = thinkEdit.config;
+    patchModel(thinkEdit.index, {
+      thinking: config.efforts.length > 0
+        ? { ...config, defaultLevel: config.defaultLevel && config.efforts.includes(config.defaultLevel) ? config.defaultLevel : undefined }
+        : undefined,
+    });
+    setThinkEdit(null);
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -444,17 +502,16 @@ function ProviderForm({
               </Select>
             </Field>
             <Field label={t.models.thinkingLevel}>
-              <Select
-                value={m.thinkingLevel ?? ""}
-                onChange={(e) => patchModel(i, { thinkingLevel: e.target.value || undefined })}
+              <Button
+                size="sm"
+                className="w-full justify-between font-mono text-[11px]"
+                onClick={() => openThinking(i)}
               >
-                <option value="">{t.models.unset}</option>
-                {THINKING_LEVELS.map((l) => (
-                  <option key={l} value={l}>
-                    {l}
-                  </option>
-                ))}
-              </Select>
+                <span className="truncate">
+                  {thinkingLabel(m.thinking?.mode, m.thinking?.efforts) || t.models.thinkingDefault}
+                </span>
+                <Pencil size={12} />
+              </Button>
             </Field>
             <div className="flex items-center gap-3 pb-1">
               <Switch checked={m.reasoning} onChange={(v) => patchModel(i, { reasoning: v })} label={t.models.reasoning} />
@@ -584,6 +641,73 @@ function ProviderForm({
             </tbody>
           </table>
         )}
+      </Dialog>
+
+      <Dialog
+        open={thinkEdit !== null}
+        title={`${t.models.thinkingLevel} — ${draft.models[thinkEdit?.index ?? 0]?.id ?? ""}`}
+        onClose={() => setThinkEdit(null)}
+        footer={
+          <>
+            <Button onClick={() => setThinkEdit(null)}>{t.common.cancel}</Button>
+            <Button variant="primary" onClick={commitThinking}>
+              {t.common.save}
+            </Button>
+          </>
+        }
+      >
+        <p className="mb-3 text-[12px] text-[var(--color-fg-muted)]">{t.models.thinkingHint}</p>
+        <div className="flex flex-col gap-4">
+          <Field label={t.models.thinkingMode}>
+            <Select
+              value={thinkEdit?.config.mode ?? "effort"}
+              onChange={(e) =>
+                setThinkEdit((edit) =>
+                  edit ? { ...edit, config: { ...edit.config, mode: e.target.value } } : edit,
+                )
+              }
+            >
+              {THINKING_MODES.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label={t.models.thinkingEfforts}>
+            <div className="flex flex-wrap gap-x-4 gap-y-2">
+              {THINKING_EFFORTS.map((level) => (
+                <Checkbox
+                  key={level}
+                  checked={thinkEdit?.config.efforts.includes(level) ?? false}
+                  onChange={() => toggleEffort(level)}
+                >
+                  {level}
+                </Checkbox>
+              ))}
+            </div>
+          </Field>
+          <Field label={t.models.thinkingDefaultLevel}>
+            <Select
+              value={thinkEdit?.config.defaultLevel ?? ""}
+              disabled={!thinkEdit?.config.efforts.length}
+              onChange={(e) =>
+                setThinkEdit((edit) =>
+                  edit
+                    ? { ...edit, config: { ...edit.config, defaultLevel: e.target.value || undefined } }
+                    : edit,
+                )
+              }
+            >
+              <option value="">{t.models.unset}</option>
+              {(thinkEdit?.config.efforts ?? []).map((level) => (
+                <option key={level} value={level}>
+                  {level}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </div>
       </Dialog>
     </div>
   );

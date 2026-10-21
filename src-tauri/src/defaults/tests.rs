@@ -51,9 +51,9 @@ fn write_read_round_trips() {
             image_input: true,
             context_window: Some(200_000),
             max_tokens: Some(8192),
-            thinking_level: Some("medium".into()),
         },
         role_thinking_level: Some("low".into()),
+        enable_max_thinking: true,
         ..Default::default()
     };
     let back = write(&d).unwrap();
@@ -76,6 +76,7 @@ fn scalar_fields_survive_yaml_round_trip() {
     let text = fs::read_to_string(sb.root.join(".omp-ctl/defaults.yml")).unwrap();
     assert!(text.contains("contextWindow: 123456"));
     assert!(text.contains("roleThinkingLevel: xhigh"));
+    assert!(text.contains("enableMaxThinking: false"));
     assert_eq!(read().unwrap(), d);
 }
 

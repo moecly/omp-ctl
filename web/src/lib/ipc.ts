@@ -152,6 +152,9 @@ export const ipc = {
   setDefaults: async (defaults: Defaults) => {
     const r = await invoke<Defaults>("set_defaults", { defaults });
     invalidate("defaults");
+    invalidate("provider");
+    invalidate("model-refs");
+    invalidate("overview");
     return r;
   },
   listPresets: () => get("presets", () => invoke<Preset[]>("list_presets")),
@@ -334,6 +337,7 @@ export function prefetchRoute(page: string, param?: string) {
       break;
     case "providers":
       prefetch("provider-summaries", () => invoke("list_provider_summaries"), TTL);
+      prefetch("model-refs", () => invoke("list_model_refs"), TTL);
       break;
     case "models":
       prefetch("providers", () => invoke("list_providers"), TTL);

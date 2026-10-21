@@ -94,10 +94,10 @@ export function ModelRoles() {
   const create = async () => {
     if (!newRole.trim() || !newSelector.trim()) return;
     const role = newRole.trim();
-    await mutate(
-      () => ipc.setModelRole(role, joinSelector(newSelector.trim(), newLevel || defLevel)),
-      role,
-    );
+    const selector = newSelector.trim();
+    const wanted = newLevel || defLevel;
+    const level = levelsFor(selector).includes(wanted) ? wanted : "";
+    await mutate(() => ipc.setModelRole(role, joinSelector(selector, level)), role);
     setNewRole("");
     setNewSelector("");
     setNewLevel("");
@@ -131,6 +131,11 @@ export function ModelRoles() {
   };
 
   const selectors = (refs.data ?? []).map((r) => r.id);
+  const levelsFor = (selector: string) => {
+    const head = splitSelector(selector)[0];
+    const ref = (refs.data ?? []).find((r) => r.id === head);
+    return ref?.thinking?.length ? ref.thinking : THINKING_LEVELS;
+  };
   const validTarget = !presets.data || presets.data.some((p) => p.name === target) ? target : "";
 
   const entries = Object.entries(roles.data?.roles ?? {});
@@ -190,8 +195,7 @@ export function ModelRoles() {
         <div className="divide-y divide-[var(--color-border)]">
           {entries.map(([role, selector]) => {
             const [model, level] = splitSelector(selector);
-            const ref = (refs.data ?? []).find((r) => r.id === model);
-            const levels = ref?.thinking?.length ? ref.thinking : THINKING_LEVELS;
+            const levels = levelsFor(selector);
             return (
             <div key={role} className="group flex h-[44px] items-center gap-3 px-1 py-2.5 hover:bg-[var(--color-hover)]">
               <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -203,7 +207,10 @@ export function ModelRoles() {
                 className="w-[240px]"
                 value={selectors.includes(model) ? model : ""}
                 disabled={applying}
-                onChange={(e) => update(role, joinSelector(e.target.value, level))}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  update(role, joinSelector(next, levelsFor(next).includes(level) ? level : ""));
+                }}
               >
                 {!selectors.includes(model) && <option value="">{model}</option>}
                 {selectors.map((s) => (
@@ -318,14 +325,18 @@ export function ModelRoles() {
               mono
               list="role-selectors"
               value={newSelector}
-              onChange={(e) => setNewSelector(e.target.value)}
+              onChange={(e) => {
+                const next = e.target.value;
+                setNewSelector(next);
+                if (newLevel && !levelsFor(next).includes(newLevel)) setNewLevel("");
+              }}
               placeholder="axon/model"
             />
           </Field>
           <Field label={t.roles.thinkingLevel}>
             <Select value={newLevel} onChange={(e) => setNewLevel(e.target.value)}>
               <option value="">{t.models.unset}</option>
-              {THINKING_LEVELS.map((l) => (
+              {levelsFor(newSelector).map((l) => (
                 <option key={l} value={l}>
                   {l}
                 </option>

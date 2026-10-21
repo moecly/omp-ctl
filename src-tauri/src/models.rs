@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -12,6 +13,21 @@ use crate::yaml::YamlDoc;
 
 #[cfg(test)]
 mod tests;
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ThinkingConfig {
+    #[serde(default)]
+    pub mode: String,
+    #[serde(default)]
+    pub efforts: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default_level: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub requires_effort: Option<bool>,
+    #[serde(default, flatten)]
+    pub extra: Map<String, JValue>,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -30,7 +46,7 @@ pub struct ModelEntry {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_tokens: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub thinking_level: Option<String>,
+    pub thinking: Option<ThinkingConfig>,
     /// unmodelled keys carried through untouched
     #[serde(default)]
     pub raw: JValue,
@@ -117,10 +133,9 @@ impl Provider {
                             image_input: input,
                             context_window: mm.get("contextWindow").and_then(|v| v.as_u64()),
                             max_tokens: mm.get("maxTokens").and_then(|v| v.as_u64()),
-                            thinking_level: mm
-                                .get("thinkingLevelMap")
-                                .and_then(|v| v.as_object())
-                                .and_then(|o| o.keys().next().cloned()),
+                            thinking: mm
+                                .get("thinking")
+                                .and_then(|v| serde_json::from_value(v.clone()).ok()),
                             raw: mv.clone(),
                         }
                     })
@@ -188,12 +203,12 @@ impl Provider {
             );
             set_num(&mut em, "contextWindow", entry.context_window);
             set_num(&mut em, "maxTokens", entry.max_tokens);
-            match entry.thinking_level.as_deref().map(str::trim) {
-                Some(level) if !level.is_empty() && level != "off" => {
-                    em.insert("thinkingLevelMap".into(), json!({ level: JValue::Null }));
+            match &entry.thinking {
+                Some(t) if !t.mode.trim().is_empty() && !t.efforts.is_empty() => {
+                    em.insert("thinking".into(), json!(t));
                 }
                 _ => {
-                    em.remove("thinkingLevelMap");
+                    em.remove("thinking");
                 }
             }
             models.push(JValue::Object(em));
@@ -266,11 +281,93 @@ pub fn provider_ids() -> Result<Vec<String>> {
     Ok(YamlDoc::load(&path)?.ids())
 }
 
+/// Configured model selectors paired with the thinking levels omp reports for them.
+pub fn list_refs() -> Result<Vec<ModelRef>> {
+    let mut levels: HashMap<String, Vec<String>> = HashMap::new();
+    if let Ok(out) = crate::proc::omp(&["models", "--json"]) {
+        for m in parse_catalog(&out, None) {
+            levels.insert(format!("{}/{}", m.provider, m.id), m.thinking);
+        }
+    }
+    let mut refs = Vec::new();
+    for p in load_providers()? {
+        for m in p.models {
+            let id = format!("{}/{}", p.id, m.id);
+            let thinking = levels.get(&id).cloned().unwrap_or_default();
+            refs.push(ModelRef {
+                id,
+                name: m.name,
+                thinking,
+            });
+        }
+    }
+    Ok(refs)
+}
+
 /// Route every models.yml read/write through the store link.
 pub fn ensure_linked() -> Result<PathBuf> {
     let agent = paths::agent_dir()?;
     store::adopt(&agent, store::MODELS)?;
     store::store_file(store::MODELS)
+}
+
+const DEFAULT_EFFORTS: [&str; 5] = ["minimal", "low", "medium", "high", "xhigh"];
+
+fn thinking_mode_for_api(api: &str) -> &'static str {
+    if api.starts_with("anthropic") {
+        "budget"
+    } else if api.starts_with("google") {
+        "google-level"
+    } else if api == "bedrock-converse-stream" {
+        "budget"
+    } else {
+        "effort"
+    }
+}
+
+fn merge_max_levels(p: &mut Provider, effective: &HashMap<String, Vec<String>>) {
+    let provider_api = p.api.clone();
+    for m in &mut p.models {
+        if !m.reasoning {
+            continue;
+        }
+        let mut t = m.thinking.take().unwrap_or_default();
+        if t.mode.trim().is_empty() {
+            t.mode = thinking_mode_for_api(m.api.as_deref().unwrap_or(&provider_api)).to_string();
+        }
+        let base = if t.efforts.is_empty() {
+            effective
+                .get(&m.id)
+                .cloned()
+                .unwrap_or_else(|| DEFAULT_EFFORTS.iter().map(|l| (*l).to_string()).collect())
+        } else {
+            t.efforts.clone()
+        };
+        t.efforts = DEFAULT_EFFORTS
+            .iter()
+            .copied()
+            .chain(["max"])
+            .filter(|level| *level == "max" || base.iter().any(|b| b == level))
+            .map(str::to_string)
+            .collect();
+        if t.default_level.as_ref().is_some_and(|d| !t.efforts.contains(d)) {
+            t.default_level = None;
+        }
+        m.thinking = Some(t);
+    }
+}
+
+pub fn ensure_max_levels(p: &mut Provider) {
+    if !p.models.iter().any(|m| m.reasoning) {
+        return;
+    }
+    let mut effective = HashMap::new();
+    if let Ok(items) = catalog(&p.id) {
+        for m in items {
+            effective.insert(m.id, m.thinking);
+        }
+    }
+    merge_max_levels(p, &effective);
 }
 
 pub fn save_provider(p: &Provider) -> Result<()> {
