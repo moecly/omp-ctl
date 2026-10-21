@@ -135,3 +135,146 @@ fn sync_active_roles_without_active_workspace_errors() {
     let roles = BTreeMap::new();
     assert!(sync_active_roles(&roles, &[]).is_err());
 }
+
+#[test]
+fn apply_recreates_missing_mcp_link() {
+    let _sb = setup_state();
+    let agent = paths::agent_dir().unwrap();
+    create("A").unwrap();
+
+    fs::remove_file(agent.join(MCP_FILE)).unwrap();
+    assert_eq!(
+        store::link_state(&agent, MCP_FILE).unwrap().kind,
+        store::LinkKind::Absent
+    );
+
+    apply("A").unwrap();
+
+    assert_eq!(
+        store::link_state(&agent, MCP_FILE).unwrap().kind,
+        store::LinkKind::Managed
+    );
+    assert!(fs::read_to_string(agent.join(MCP_FILE))
+        .unwrap()
+        .contains("codegraph"));
+}
+
+#[test]
+fn apply_repairs_dangling_mcp_link() {
+    let sb = setup_state();
+    let agent = paths::agent_dir().unwrap();
+    create("A").unwrap();
+
+    fs::remove_file(sb.root.join(".omp-ctl/mcp.json")).unwrap();
+    assert!(!agent.join(MCP_FILE).exists());
+
+    apply("A").unwrap();
+
+    assert!(agent.join(MCP_FILE).exists());
+    assert!(fs::read_to_string(agent.join(MCP_FILE))
+        .unwrap()
+        .contains("codegraph"));
+}
+
+#[test]
+fn repair_active_restores_dangling_mcp_store() {
+    let sb = setup_state();
+    let agent = paths::agent_dir().unwrap();
+    create("A").unwrap();
+
+    fs::remove_file(sb.root.join(".omp-ctl/mcp.json")).unwrap();
+    assert!(!agent.join(MCP_FILE).exists());
+
+    assert!(repair_active().unwrap());
+    assert!(agent.join(MCP_FILE).exists());
+    assert_eq!(
+        store::link_state(&agent, MCP_FILE).unwrap().kind,
+        store::LinkKind::Managed
+    );
+    assert!(fs::read_to_string(agent.join(MCP_FILE))
+        .unwrap()
+        .contains("codegraph"));
+}
+
+#[test]
+fn repair_active_recreates_missing_mcp_link() {
+    let sb = setup_state();
+    let agent = paths::agent_dir().unwrap();
+    create("A").unwrap();
+
+    fs::remove_file(agent.join(MCP_FILE)).unwrap();
+    assert!(sb.root.join(".omp-ctl/mcp.json").exists());
+
+    assert!(repair_active().unwrap());
+    assert_eq!(
+        store::link_state(&agent, MCP_FILE).unwrap().kind,
+        store::LinkKind::Managed
+    );
+}
+
+#[test]
+fn repair_active_restores_missing_resource_link() {
+    let _sb = setup_state();
+    let agent = paths::agent_dir().unwrap();
+    create("A").unwrap();
+
+    fs::remove_file(agent.join("skills/demo")).unwrap();
+    assert!(repair_active().unwrap());
+    assert_eq!(
+        store::link_state_rel(&agent, "skills/demo").unwrap().kind,
+        store::LinkKind::Managed
+    );
+    assert!(agent.join("skills/demo/SKILL.md").exists());
+}
+
+#[test]
+fn repair_active_restores_dangling_prompt_store() {
+    let sb = setup_state();
+    let agent = paths::agent_dir().unwrap();
+    crate::prompts::set_enabled("agents", true).unwrap();
+    create("A").unwrap();
+
+    fs::remove_file(sb.root.join(".omp-ctl/AGENTS.md")).unwrap();
+    assert!(!agent.join("AGENTS.md").exists());
+
+    assert!(repair_active().unwrap());
+    assert_eq!(
+        store::link_state(&agent, "AGENTS.md").unwrap().kind,
+        store::LinkKind::Managed
+    );
+    assert!(agent.join("AGENTS.md").exists());
+}
+
+#[test]
+fn apply_overrides_foreign_prompt_with_snapshot() {
+    let _sb = setup_state();
+    let agent = paths::agent_dir().unwrap();
+    crate::prompts::write("agents", "# snapshot\n").unwrap();
+    create("A").unwrap();
+
+    fs::remove_file(agent.join("AGENTS.md")).unwrap();
+    fs::write(agent.join("AGENTS.md"), "# foreign\n").unwrap();
+
+    apply("A").unwrap();
+    assert_eq!(
+        fs::read_to_string(agent.join("AGENTS.md")).unwrap(),
+        "# snapshot\n"
+    );
+}
+
+#[test]
+fn apply_overrides_foreign_resource_with_snapshot() {
+    let _sb = setup_state();
+    let agent = paths::agent_dir().unwrap();
+    create("A").unwrap();
+
+    fs::remove_file(agent.join("skills/demo")).unwrap();
+    fs::create_dir_all(agent.join("skills/demo")).unwrap();
+    fs::write(agent.join("skills/demo/SKILL.md"), "# foreign\n").unwrap();
+
+    apply("A").unwrap();
+    assert_eq!(
+        fs::read_to_string(agent.join("skills/demo/SKILL.md")).unwrap(),
+        "# demo\n"
+    );
+}

@@ -11,7 +11,7 @@ web/                    React + TypeScript + Vite + Tailwind v4 前端（bun 管
     styles/app.css      唯一样式入口：@import "tailwindcss" + @theme token + @layer base
     lib/                ipc（Tauri 命令封装，读经 queryCache 做 30s SWR 缓存）、types（后端 DTO）、modelMeta（API/思考等级
                         常量与 selector 拼接）、chord（KeyboardEvent → 组合键字符串）、router、i18n、prefs、toast、
-                        hotkeys、format、cn（clsx+tailwind-merge）
+                        hotkeys、format、cn（clsx+tailwind-merge）、scanRows（探测对话框行合并：上游在线 + 已配置但上游已移除）
     hooks/              useAsync（加载/错误/reload）、useApp（全局上下文）
     components/ui/      UI 原语（Button/Input/Dialog/CodeEditor/Tabs/...），纯 Tailwind
     components/shell/   AppShell、Sidebar、Header、CommandPalette、PageContainer

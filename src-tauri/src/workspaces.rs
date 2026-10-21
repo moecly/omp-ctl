@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -248,19 +248,27 @@ fn apply_manifest(manifest: &Manifest, dir: &Path) -> Result<()> {
     let snap_mcp = dir.join(MCP_FILE);
     let store_mcp = store.join(MCP_FILE);
     if snap_mcp.exists() {
+        store::adopt(&agent, MCP_FILE)?;
         if store_mcp.exists() {
             let _ = store::backup_file(&store_mcp)?;
         }
         let bytes = fs::read(&snap_mcp).map_err(|e| AppError::fs(&snap_mcp, e.to_string()))?;
         store::write_atomic(&store_mcp, &bytes)?;
-    } else if store_mcp.exists() {
-        fs::remove_file(&store_mcp).map_err(|e| AppError::fs(&store_mcp, e.to_string()))?;
+    } else {
+        store::detach(&agent, MCP_FILE)?;
+        if store_mcp.exists() {
+            fs::remove_file(&store_mcp).map_err(|e| AppError::fs(&store_mcp, e.to_string()))?;
+        }
     }
 
     for spec in prompts::PROMPTS {
         let snap = dir.join(spec.name);
         let store_path = store.join(spec.name);
+        let enabled = manifest.prompts_enabled.get(spec.key).copied().unwrap_or(false);
         if snap.exists() {
+            if enabled {
+                store::adopt(&agent, spec.name)?;
+            }
             if store_path.exists() {
                 let _ = store::backup_file(&store_path)?;
             }
@@ -273,7 +281,6 @@ fn apply_manifest(manifest: &Manifest, dir: &Path) -> Result<()> {
             }
             continue;
         }
-        let enabled = manifest.prompts_enabled.get(spec.key).copied().unwrap_or(false);
         prompts::set_enabled(spec.key, enabled)?;
     }
 
@@ -326,12 +333,146 @@ fn apply_manifest(manifest: &Manifest, dir: &Path) -> Result<()> {
                 if state.kind != store::LinkKind::Managed && store.join(&rel).exists() {
                     let _ = store::adopt_rel(&agent, &rel);
                 }
+                if state.kind == store::LinkKind::Unmanaged {
+                    let snap_item = snap_sub.join(&name);
+                    if snap_item.exists() {
+                        let store_item = store_sub.join(&name);
+                        if snap_item.is_dir() {
+                            remove_if_exists(&store_item)?;
+                            copy_dir_all(&snap_item, &store_item)?;
+                        } else {
+                            let bytes = fs::read(&snap_item)
+                                .map_err(|e| AppError::fs(&snap_item, e.to_string()))?;
+                            store::write_atomic(&store_item, &bytes)?;
+                        }
+                    }
+                }
             } else if state.kind == store::LinkKind::Managed {
                 store::detach_rel(&agent, &rel)?;
             }
         }
     }
     Ok(())
+}
+
+fn restore_store_artifact(snapshot: &Path, store_path: &Path) -> Result<bool> {
+    if store_path.exists() || !snapshot.exists() {
+        return Ok(false);
+    }
+    let meta = fs::symlink_metadata(snapshot).map_err(|e| AppError::fs(snapshot, e.to_string()))?;
+    if meta.is_dir() {
+        copy_dir_all(snapshot, store_path)?;
+    } else {
+        let bytes = fs::read(snapshot).map_err(|e| AppError::fs(snapshot, e.to_string()))?;
+        store::write_atomic(store_path, &bytes)?;
+    }
+    Ok(true)
+}
+
+/// Restore one workspace-owned entry without rewriting config or roles.
+/// A link the user replaced with a real file is left alone.
+fn heal_entry(
+    agent: &Path,
+    snapshot: &Path,
+    store_path: &Path,
+    rel: &str,
+    want: bool,
+) -> Result<bool> {
+    let state = store::link_state_rel(agent, rel)?;
+    if !want {
+        if state.kind == store::LinkKind::Managed && !state.path.exists() {
+            store::detach_rel(agent, rel)?;
+            return Ok(true);
+        }
+        return Ok(false);
+    }
+    let mut changed = restore_store_artifact(snapshot, store_path)?;
+    let state = store::link_state_rel(agent, rel)?;
+    match state.kind {
+        store::LinkKind::Absent if store_path.exists() => {
+            store::adopt_rel(agent, rel)?;
+            changed = true;
+        }
+        store::LinkKind::Managed if !state.path.exists() => {
+            store::detach_rel(agent, rel)?;
+            changed = true;
+        }
+        _ => {}
+    }
+    Ok(changed)
+}
+
+/// Rebuild links left dangling by an externally deleted store file.
+/// Only the active workspace is repaired; workspace content is never re-applied.
+pub fn repair_active() -> Result<bool> {
+    let name = match active()? {
+        Some(name) => name,
+        None => return Ok(false),
+    };
+    let dir = ws_dir(&name)?;
+    if !dir.exists() {
+        return Ok(false);
+    }
+    let manifest = read_manifest(&dir)?;
+    let agent = paths::agent_dir()?;
+    let store = paths::store_dir()?;
+    let mut changed = false;
+
+    changed |= heal_entry(
+        &agent,
+        &dir.join(MCP_FILE),
+        &store.join(MCP_FILE),
+        MCP_FILE,
+        dir.join(MCP_FILE).exists(),
+    )?;
+
+    for spec in prompts::PROMPTS {
+        let want = manifest
+            .prompts_enabled
+            .get(spec.key)
+            .copied()
+            .unwrap_or(false);
+        changed |= heal_entry(
+            &agent,
+            &dir.join(spec.name),
+            &store.join(spec.name),
+            spec.name,
+            want,
+        )?;
+    }
+
+    for spec in resources::RESOURCES {
+        if spec.id == "agents" {
+            continue;
+        }
+        let snap_sub = dir.join(spec.store_sub);
+        let store_sub = store.join(spec.store_sub);
+        let mut names = BTreeSet::new();
+        if let Ok(entries) = fs::read_dir(&snap_sub) {
+            for entry in entries.flatten() {
+                names.insert(entry.file_name().to_string_lossy().into_owned());
+            }
+        }
+        if let Some(wanted) = manifest.resources_enabled.get(spec.id) {
+            names.extend(wanted.keys().cloned());
+        }
+        for name in names {
+            let want = manifest
+                .resources_enabled
+                .get(spec.id)
+                .and_then(|w| w.get(&name))
+                .copied()
+                .unwrap_or(false);
+            changed |= heal_entry(
+                &agent,
+                &snap_sub.join(&name),
+                &store_sub.join(&name),
+                &format!("{}/{}", spec.agent_sub, name),
+                want,
+            )?;
+        }
+    }
+    Ok(changed)
 }
 
 fn entries() -> Result<Vec<WorkspaceEntry>> {

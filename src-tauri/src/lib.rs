@@ -501,6 +501,9 @@ fn apply_preset(name: String) -> Result<ApplyPresetOutcome> {
 
 #[tauri::command]
 fn list_workspaces() -> Result<Vec<workspaces::WorkspaceEntry>> {
+    if let Err(e) = workspaces::repair_active() {
+        eprintln!("workspace repair failed: {e}");
+    }
     workspaces::list()
 }
 
@@ -556,6 +559,12 @@ fn restore_keybindings_backup() -> Result<KeybindingsState> {
 
 pub fn run() {
     tauri::Builder::default()
+        .setup(|_| {
+            if let Err(e) = workspaces::repair_active() {
+                eprintln!("workspace repair failed: {e}");
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             get_dirs,
             list_providers,

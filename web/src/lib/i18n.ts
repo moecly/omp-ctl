@@ -143,6 +143,8 @@ export interface Strings {
     fetchTitle: string;
     fetchAdd: string;
     fetchExists: string;
+    fetchStale: string;
+    fetchRemoveStale: string;
     selectAll: string;
     probeNoId: string;
     editTitle: string;
@@ -451,9 +453,11 @@ const zh: Strings = {
     probe: "探测模型",
     probing: "探测中…",
     probeResult: "探测到 {n} 个模型",
-    fetchTitle: "选择要添加的模型",
+    fetchTitle: "扫描结果",
     fetchAdd: "添加模型",
     fetchExists: "已存在",
+    fetchStale: "上游已移除",
+    fetchRemoveStale: "移除失效模型",
     selectAll: "全选",
     probeNoId: "请先填写服务商 ID",
     editTitle: "编辑服务商",
@@ -774,9 +778,11 @@ const en: Strings = {
     probe: "Probe models",
     probing: "Probing…",
     probeResult: "Found {n} models",
-    fetchTitle: "Select models to add",
+    fetchTitle: "Probe results",
     fetchAdd: "Add models",
     fetchExists: "Exists",
+    fetchStale: "Gone upstream",
+    fetchRemoveStale: "Remove stale",
     selectAll: "Select all",
     probeNoId: "Fill in the provider ID first",
     editTitle: "Edit provider",

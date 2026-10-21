@@ -8,6 +8,7 @@ import { errorText, type CatalogModel, type Defaults, type ModelEntry, type Prov
 import { API_PRESETS, THINKING_LEVELS } from "../lib/modelMeta";
 import { toast } from "../lib/toast";
 import { cn } from "../lib/cn";
+import { scanRows } from "../lib/scanRows";
 import {
   Badge,
   Button,
@@ -322,19 +323,8 @@ function ProviderForm({
     setFetchOpen(false);
   };
 
-  const rows: { id: string; meta?: CatalogModel }[] = (() => {
-    const seen = new Set<string>();
-    const out: { id: string; meta?: CatalogModel }[] = [];
-    for (const c of catalog) {
-      seen.add(c.id);
-      out.push({ id: c.id, meta: c });
-    }
-    for (const id of probedIds) {
-      if (!seen.has(id)) out.push({ id });
-    }
-    return out;
-  })();
   const existingIds = new Set(draft.models.map((m) => m.id));
+  const { rows, staleIds } = scanRows(draft.models, catalog, probedIds);
   const selectableIds = rows.filter((r) => !existingIds.has(r.id)).map((r) => r.id);
   const allSelected = selectableIds.length > 0 && selectableIds.every((id) => selected.includes(id));
   const toggleAll = () =>
@@ -514,6 +504,14 @@ function ProviderForm({
         wide
         footer={
           <>
+            {staleIds.size > 0 && (
+              <Button
+                className="mr-auto"
+                onClick={() => patch({ models: draft.models.filter((m) => !staleIds.has(m.id)) })}
+              >
+                {t.providers.fetchRemoveStale} ({staleIds.size})
+              </Button>
+            )}
             <Button onClick={() => setFetchOpen(false)}>{t.common.cancel}</Button>
             <Button variant="primary" disabled={selected.length === 0} onClick={addSelected}>
               {t.providers.fetchAdd} ({selected.length})
@@ -567,8 +565,17 @@ function ProviderForm({
                     </td>
                     <td>
                       <div className="flex items-center justify-end gap-2">
-                        {exists && <Badge tone="neutral">{t.providers.fetchExists}</Badge>}
+                        {r.stale && <Badge tone="warn">{t.providers.fetchStale}</Badge>}
+                        {exists && !r.stale && <Badge tone="neutral">{t.providers.fetchExists}</Badge>}
                         {r.meta?.reasoning && <Badge tone="accent">{t.models.reasoning}</Badge>}
+                        {r.stale && (
+                          <IconButton
+                            label={t.common.delete}
+                            onClick={() => patch({ models: draft.models.filter((m) => m.id !== r.id) })}
+                          >
+                            <Trash2 size={14} />
+                          </IconButton>
+                        )}
                       </div>
                     </td>
                   </tr>
