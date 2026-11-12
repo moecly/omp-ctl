@@ -7,14 +7,15 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "仅重发 AUR：填要发布的 tag（如 v0.8.4）。留空则只重跑三平台构建。"
+        description: "仅重发 AUR：填要发布的 tag（如 v0.8.4）。留空则按所选 ref 重跑构建，ref 必须是 tag。"
         required: false
         type: string
 
 jobs:
   release:
-    # 手动触发留空 tag 时才重跑构建；填了 tag 就只发 AUR。
-    if: github.event_name == 'push' || inputs.tag == ''
+    # 必须绑死在 v* tag 上：tauri-action 用 github.ref_name 当 tagName，在分支上
+    # 运行会把分支名（如 main）建成 tag 和 release，还会抢走 Latest。
+    if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write
     strategy:
@@ -71,9 +72,10 @@ jobs:
     needs: [release]
     # 两种入口：tag push 且构建成功；或手动触发并显式填了 tag。
     # needs 会连带跳过，所以必须用 always() 才能单独重发 AUR。
+    # 手动入口只填了 tag 时 release 会因 ref 不是 tag 而跳过，故这里不看它的结果。
     if: |
       always() && (
-        (github.event_name == 'push' && needs.release.result == 'success' && startsWith(github.ref, 'refs/tags/v'))
+        (startsWith(github.ref, 'refs/tags/v') && needs.release.result == 'success')
         || (github.event_name == 'workflow_dispatch' && inputs.tag != '')
       )
     runs-on: ubuntu-latest
