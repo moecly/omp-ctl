@@ -7,6 +7,7 @@ import { ipc } from "../lib/ipc";
 import { errorText, type ImportedFont, type SettingEntry, type SettingsCatalog } from "../lib/types";
 import { displayValue, toSettingInput } from "../lib/format";
 import { settingLabel, tabLabel } from "../lib/settingLabels";
+import { descriptionZh } from "../lib/settingDescriptions";
 import { BUNDLED_FONT, SYSTEM_FONT } from "../lib/appearance";
 import { PALETTES } from "../lib/palettes";
 import { toast } from "../lib/toast";
@@ -353,6 +354,9 @@ function SettingRow({
   }, [entry.value]);
 
   const dirty = value !== toSettingInput(entry.value);
+  // omp does not localise setting descriptions, so Chinese falls back to the
+  // translation table before omp's English text.
+  const description = locale === "zh" ? (descriptionZh(entry.key) ?? entry.description) : entry.description;
 
   return (
     <div
@@ -366,8 +370,8 @@ function SettingRow({
           {entry.configured && <Badge tone="ok">{t.settings.configured}</Badge>}
         </div>
         <div className="mt-0.5 truncate font-mono text-[11px] text-[var(--color-fg-subtle)]">{entry.key}</div>
-        {entry.description && (
-          <div className="mt-1 text-[12px] leading-relaxed text-[var(--color-fg-muted)]">{entry.description}</div>
+        {description && (
+          <div className="mt-1 text-[12px] leading-relaxed text-[var(--color-fg-muted)]">{description}</div>
         )}
       </div>
 
