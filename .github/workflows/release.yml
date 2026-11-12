@@ -5,9 +5,16 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "仅重发 AUR：填要发布的 tag（如 v0.8.4）。留空则只重跑三平台构建。"
+        required: false
+        type: string
 
 jobs:
   release:
+    # 手动触发留空 tag 时才重跑构建；填了 tag 就只发 AUR。
+    if: github.event_name == 'push' || inputs.tag == ''
     permissions:
       contents: write
     strategy:
@@ -61,8 +68,14 @@ jobs:
 
   # 不能拆成独立 workflow：release 事件由 GITHUB_TOKEN 创建，GitHub 不会用它触发新 workflow。
   aur:
-    needs: release
-    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [release]
+    # 两种入口：tag push 且构建成功；或手动触发并显式填了 tag。
+    # needs 会连带跳过，所以必须用 always() 才能单独重发 AUR。
+    if: |
+      always() && (
+        (github.event_name == 'push' && needs.release.result == 'success' && startsWith(github.ref, 'refs/tags/v'))
+        || (github.event_name == 'workflow_dispatch' && inputs.tag != '')
+      )
     runs-on: ubuntu-latest
     strategy:
       # 一个包失败不影响另一个：omp-ctl-bin 的资产和 omp-ctl 的源码构建互不相关
@@ -79,6 +92,8 @@ jobs:
         run: pacman -Syu --noconfirm --needed git openssh
 
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref_name }}
 
       - name: 准备 makepkg 环境与 AUR 密钥
         env:
@@ -115,4 +130,4 @@ jobs:
           sudo -u builder -H env \
             AUR_KEY_FILE=/home/builder/.ssh/aur \
             GIT_SSH_COMMAND='ssh -i /home/builder/.ssh/aur -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new' \
-            bash "$GITHUB_WORKSPACE/packaging/aur/publish.sh" "${GITHUB_REF_NAME}" 1 "${{ matrix.package }}"
+            bash "$GITHUB_WORKSPACE/packaging/aur/publish.sh" "${{ inputs.tag || github.ref_name }}" 1 "${{ matrix.package }}"
