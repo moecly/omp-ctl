@@ -45,7 +45,7 @@ export function Header({ route, onOpenPalette }: { route: Route; onOpenPalette: 
   const active = PALETTES.find((p) => p.id === palette) ?? PALETTES[0];
 
   return (
-    <header className="flex h-[56px] shrink-0 items-center gap-2 bg-[var(--color-bg)] px-4">
+    <header className="relative z-40 flex h-[56px] shrink-0 items-center gap-2 bg-[var(--color-bg)] px-4">
       <span className="text-[13px] font-medium text-[var(--color-fg-muted)]">{pageTitle(route.page, t)}</span>
 
       <div className="ml-auto flex items-center gap-1.5">
