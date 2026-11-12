@@ -37,6 +37,10 @@ impl Sandbox {
     fn read_config(&self) -> String {
         fs::read_to_string(self.root.join(".omp-ctl/config.yml")).unwrap()
     }
+
+    fn agent_config(&self) -> String {
+        fs::read_to_string(self.root.join(".omp/agent/config.yml")).unwrap()
+    }
 }
 
 impl Drop for Sandbox {
@@ -108,5 +112,25 @@ fn set_raw_replaces_stale_empty_key() {
     assert!(out.contains("cycleOrder: []\n"), "{out}");
     assert!(!out.contains("\n  []"), "{out}");
     let v: serde_yaml::Value = serde_yaml::from_str(&out).unwrap();
-    assert!(v.get("cycleOrder").unwrap().as_sequence().unwrap().is_empty());
+    assert!(v
+        .get("cycleOrder")
+        .unwrap()
+        .as_sequence()
+        .unwrap()
+        .is_empty());
+}
+
+#[test]
+fn first_write_creates_and_links_config_yml() {
+    let sb = Sandbox::new("create");
+    set_str(&["modelRoles", "default"], "a/b").unwrap();
+
+    assert_eq!(sb.agent_config(), "modelRoles:\n  default: a/b\n");
+    assert_eq!(
+        crate::store::link_state_rel(&sb.root.join(".omp/agent"), "config.yml")
+            .unwrap()
+            .kind,
+        crate::store::LinkKind::Managed,
+        "a freshly created config.yml must be visible to omp"
+    );
 }

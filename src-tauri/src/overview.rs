@@ -88,6 +88,9 @@ pub fn get() -> Result<Overview> {
     let version = std::thread::spawn(|| proc::omp(&["--version"]));
     let info = paths::dir_info()?;
     let agent = info.agent.clone();
+    // A refresh is the natural sweep point for mirrored copies: omp edits the
+    // agent files directly, so the store has to catch up before anything reads it.
+    store::sync_copies(&agent)?;
     let providers: Vec<ProviderSummary> = crate::models::load_providers()?
         .into_iter()
         .map(|p| ProviderSummary {

@@ -102,8 +102,8 @@ fn adopt_symlink_reads_through_and_stores_backup() {
     let recorded: std::collections::BTreeMap<String, LinkMeta> =
         serde_json::from_str(&read(&sb.store().join(".links.json"))).unwrap();
     assert_eq!(
-        recorded.get("X.md").unwrap().backup,
-        backup_path.to_string_lossy()
+        recorded.get("X.md").unwrap().backup.as_deref(),
+        Some(backup_path.to_string_lossy().as_ref())
     );
     assert!(has_backup("X.md").unwrap());
 
@@ -310,7 +310,10 @@ fn snapshot_export_import_round_trip() {
     fs::write(sb.store().join(CONFIG), "changed").unwrap();
 
     import_snapshot(&archive).unwrap();
-    assert_eq!(read(&sb.store().join(CONFIG)), "modelRoles: {default: a/b}\n");
+    assert_eq!(
+        read(&sb.store().join(CONFIG)),
+        "modelRoles: {default: a/b}\n"
+    );
     assert_eq!(read(&sb.store().join("skills/x.md")), "SKILL");
 }
 
@@ -330,4 +333,121 @@ fn snapshot_rejects_symlink_entries() {
     assert!(out.status.success());
     let err = import_snapshot(&evil).unwrap_err();
     assert!(err.to_string().contains("refusing symlink entry"));
+}
+
+#[test]
+fn copy_mode_mirrors_both_directions() {
+    let sb = Sandbox::new("copy-mode");
+    let rel = "config.yml";
+    let store_path = sb.store().join(rel);
+    let agent_path = sb.agent().join(rel);
+    fs::write(&store_path, "a: 1\n").unwrap();
+
+    // force the Windows-without-privilege representation
+    copy_file(&store_path, &agent_path).unwrap();
+    let mut meta = read_meta_raw().unwrap();
+    meta.insert(
+        rel.to_string(),
+        LinkMeta {
+            backup: None,
+            adopted_at: now_ts(),
+            mode: LinkMode::Copy,
+        },
+    );
+    write_meta(&meta).unwrap();
+
+    assert_eq!(
+        link_state(&sb.agent(), rel).unwrap().kind,
+        LinkKind::Managed
+    );
+    assert!(is_copy_mode(&sb.agent(), rel).unwrap());
+    assert_eq!(
+        content_path(&sb.agent(), rel).unwrap(),
+        agent_path,
+        "copy mode reads the file omp writes"
+    );
+
+    // omp rewrites the agent path: the store has to follow
+    fs::write(&agent_path, "a: 2\n").unwrap();
+    sync_copies(&sb.agent()).unwrap();
+    assert_eq!(read(&store_path), "a: 2\n");
+
+    // the GUI writes through the store: the agent copy has to follow
+    write_managed(&sb.agent(), rel, b"a: 3\n").unwrap();
+    assert_eq!(read(&agent_path), "a: 3\n");
+    assert_eq!(read(&store_path), "a: 3\n");
+
+    // detaching removes only the managed agent file, never the store
+    detach(&sb.agent(), rel).unwrap();
+    assert!(!agent_path.exists());
+    assert_eq!(read(&store_path), "a: 3\n");
+}
+
+#[test]
+fn copy_mode_does_not_resurrect_a_disabled_entry() {
+    let sb = Sandbox::new("copy-disabled");
+    let rel = "APPEND_SYSTEM.md";
+    write_atomic(&sb.store().join(rel), b"# rules\n").unwrap();
+    let mut meta = read_meta_raw().unwrap();
+    meta.insert(
+        rel.to_string(),
+        LinkMeta {
+            backup: None,
+            adopted_at: now_ts(),
+            mode: LinkMode::Copy,
+        },
+    );
+    write_meta(&meta).unwrap();
+    assert!(!sb.agent().join(rel).exists());
+
+    sync_copies(&sb.agent()).unwrap();
+    assert!(
+        !sb.agent().join(rel).exists(),
+        "a missing agent file means disabled; sync must not re-enable it"
+    );
+
+    // omp creating the file later is what re-enables it, and then the store follows
+    fs::write(sb.agent().join(rel), "# edited\n").unwrap();
+    sync_copies(&sb.agent()).unwrap();
+    assert_eq!(read(&sb.store().join(rel)), "# edited\n");
+}
+
+#[test]
+fn copy_mode_recovers_when_the_store_copy_is_gone() {
+    let sb = Sandbox::new("copy-recover");
+    let rel = "config.yml";
+    fs::write(sb.agent().join(rel), "a: 1\n").unwrap();
+    let mut meta = read_meta_raw().unwrap();
+    meta.insert(
+        rel.to_string(),
+        LinkMeta {
+            backup: None,
+            adopted_at: now_ts(),
+            mode: LinkMode::Copy,
+        },
+    );
+    write_meta(&meta).unwrap();
+
+    sync_copies(&sb.agent()).unwrap();
+    assert_eq!(read(&sb.store().join(rel)), "a: 1\n");
+}
+
+#[test]
+fn detach_removes_a_directory_link_without_emptying_the_store() {
+    let sb = Sandbox::new("detach-dirlink");
+    let dir = sb.agent().join("skills/foo");
+    fs::create_dir_all(&dir).unwrap();
+    fs::write(dir.join("SKILL.md"), "# foo\n").unwrap();
+
+    adopt_rel(&sb.agent(), "skills/foo").unwrap();
+    assert!(sb.store().join("skills/foo/SKILL.md").is_file());
+    assert_eq!(
+        fs::read_link(sb.agent().join("skills/foo")).unwrap(),
+        sb.store().join("skills/foo")
+    );
+
+    detach_rel(&sb.agent(), "skills/foo").unwrap();
+    assert!(!sb.agent().join("skills/foo").exists());
+    // the point of the pre-detach check: the store content must still be there
+    assert_eq!(read(&sb.store().join("skills/foo/SKILL.md")), "# foo\n");
 }

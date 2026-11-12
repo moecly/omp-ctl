@@ -20,12 +20,12 @@ web/                    React + TypeScript + Vite + Tailwind v4 前端（bun 管
     pages/              15 个路由页面（含 Backup 快照导出/导入、Keybindings 快捷键、Workspaces 工作区）
 dist/                   `just web-build` 产物（gitignore，Tauri frontendDist）
 src-tauri/src/
-  lib.rs                Tauri 命令注册（67 个：62 + 5 工作区）+ SANDBOX_LOCK(cfg test)
+  lib.rs                Tauri 命令注册（67 个：62 + 5 工作区）+ SANDBOX_LOCK(cfg test)；命令一律 async + offload(spawn_blocking)，否则阻塞体跑在 IPC 主线程会卡窗口
   main.rs               3 行，调用 omp_ctl_lib::run()
   error.rs              AppError（serde tag="kind"）；Result<T, E = AppError>
   paths.rs              home/store_dir/agent_dir 解析 + DirInfo/DirSource（agent_dir 经 OnceLock 进程内缓存，避免每命令起 omp 子进程；cfg(test) 不缓存）
-  proc.rs               omp 子进程封装
-  store.rs              链接状态、接管、还原、原子写、.links.json、快照导出/导入；`backup_file -> Option`（默认关闭）
+  proc.rs               omp 子进程封装：PATH/`OMP_BIN`/常见安装目录解析 `omp`（Windows 认 `.exe`/`.cmd`），子进程带 CREATE_NO_WINDOW
+  store.rs              链接状态（LinkMode：symlink/junction/copy）、接管、还原、原子写、.links.json、快照导出/导入；无符号链接权限时用目录 junction 或双写副本（`sync_copies`/`content_path`/`persist_managed` 保证两侧一致）；`backup_file -> Option`（默认关闭）
   backup.rs             写前备份开关 + 保留裁剪：`backup: {enabled, keep}`（`defaults.yml` 自有键，默认关闭/5 个，`backup/tests.rs`）
   yaml.rs               YamlDoc：行区间 YAML 编辑，保留注释
   models.rs             Provider/ModelEntry、读写、探测、模型目录（`models/tests.rs`）、默认模型
@@ -43,7 +43,7 @@ src-tauri/src/
   harness.rs            无 Tauri 的入口，供集成测试调用
 src-tauri/tests/
   real_agent_dir.rs     针对真实 agent 目录的集成测试
-src-tauri/icons/         `cargo tauri icon` 生成的图标集（`bundle.icon` 引用）
+src-tauri/icons/         `cargo tauri icon` 从 `source.svg` 生成的图标集（`bundle.icon` 引用）；改图标只改 source.svg 再重新生成
 packaging/aur/           AUR 包：每个包一个子目录（omp-ctl 源码构建 / omp-ctl-bin 展开 release 的 .deb）+ publish.sh（本地与 CI 共用的发布脚本）
 .github/workflows/release.yml  推送 tag `v*` 触发三平台打包（Linux 仅 deb+rpm，无 AppImage）；`aur` job 随后调 packaging/aur/publish.sh 推 AUR（secret `AUR_SSH_KEY`），拆成独立 workflow 不会被 GITHUB_TOKEN 的 release 事件触发
 ```
@@ -53,7 +53,7 @@ packaging/aur/           AUR 包：每个包一个子目录（omp-ctl 源码构�
 * [`Result`] 别名必须带默认错误参数：`pub type Result<T, E = AppError>`（rule `rs-result-type`）。
 * 前端只用 `web/src/components/ui` 内原语，不引入新 UI 依赖；代码编辑用 `textarea` + 行号栏（`CodeEditor`），不用 CodeMirror。
 * 样式统一用 Tailwind v4 工具类；类名拼接一律走 `cn()`（`web/src/lib/cn.ts`），不手写模板字符串。
-* 主题为 `dark`/`light`/`auto` 三态，存 localStorage；`auto` 跟随 `prefers-color-scheme`。解析后的主题写入 `document.documentElement.dataset.theme`，浅色靠 `app.css` 的 `:root[data-theme="light"]` 变量覆盖实现，组件内不写 `dark:` 变体；色值 token 定义在 `@theme` 中，通过 `var(--color-*)` 使用。
+* 主题为 `dark`/`light`/`auto` 三态，存 localStorage，默认 `light`；`auto` 跟随 `prefers-color-scheme`。解析后的主题写入 `document.documentElement.dataset.theme`，浅色靠 `app.css` 的 `:root[data-theme="light"]` 变量覆盖实现，组件内不写 `dark:` 变体；色值 token 定义在 `@theme` 中，通过 `var(--color-*)` 使用。`index.html` 的内联脚本先按 localStorage 定一次主题，避免首帧闪深色；路由切换在 `App.tsx` 用 `.page-enter` 做 150ms 入场动画（`prefers-reduced-motion` 下关闭）。
 * 每个页面最外层必须用 `PageContainer`（`{title, description?, actions?, children}`）；列表用全宽 `divide-y` 或 `<table>`，不叠 Card。
 * `web/src/lib/ipc.ts` 的参数名必须与 Rust `#[tauri::command]` 参数名逐字一致（如 `oldId`/`newId`）。
 * 所有写盘走 `store::write_atomic`，写前经 `backup_file` 生成 `.bak.<ts>`。

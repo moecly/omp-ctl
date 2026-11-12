@@ -30,28 +30,116 @@ pub struct ActionSpec {
 }
 
 pub const ACTIONS: [ActionSpec; 22] = [
-    ActionSpec { id: "app.model.cycleForward", default_chords: &["Ctrl+P"], label: "角色模型前移" },
-    ActionSpec { id: "app.model.cycleBackward", default_chords: &["Shift+Ctrl+P"], label: "角色模型后移" },
-    ActionSpec { id: "app.model.selectTemporary", default_chords: &["Alt+P"], label: "临时选模型（本会话）" },
-    ActionSpec { id: "app.model.select", default_chords: &["Alt+M"], label: "模型选择器/设角色" },
-    ActionSpec { id: "app.plan.toggle", default_chords: &["Alt+Shift+P"], label: "切换 plan 模式" },
-    ActionSpec { id: "app.history.search", default_chords: &["Ctrl+R"], label: "搜索 prompt 历史" },
-    ActionSpec { id: "app.tools.expand", default_chords: &["Ctrl+O"], label: "工具输出展开/折叠" },
-    ActionSpec { id: "app.tools.toggleVisibility", default_chords: &["Ctrl+Shift+O"], label: "显示/隐藏工具活动" },
-    ActionSpec { id: "app.thinking.toggle", default_chords: &["Ctrl+T"], label: "思考块显示" },
-    ActionSpec { id: "app.thinking.cycle", default_chords: &["Shift+Tab"], label: "思考等级循环" },
-    ActionSpec { id: "app.editor.external", default_chords: &["Ctrl+G"], label: "用 $EDITOR 编辑草稿" },
-    ActionSpec { id: "app.message.followUp", default_chords: &["Ctrl+Q", "Ctrl+Enter"], label: "排队后续消息" },
-    ActionSpec { id: "app.message.dequeue", default_chords: &["Alt+Up", "Shift+Up"], label: "取回排队消息" },
-    ActionSpec { id: "app.retry", default_chords: &["Alt+R"], label: "重试上一轮失败回合" },
-    ActionSpec { id: "app.display.reset", default_chords: &["Alt+L"], label: "重置终端显示" },
-    ActionSpec { id: "app.clipboard.copyLine", default_chords: &["Alt+Shift+L"], label: "复制当前行" },
-    ActionSpec { id: "app.clipboard.copyPrompt", default_chords: &["Alt+Shift+C"], label: "复制整个 prompt" },
-    ActionSpec { id: "app.clipboard.pasteTextRaw", default_chords: &["Ctrl+Shift+V", "Alt+Shift+V"], label: "粘贴文本（不折叠）" },
-    ActionSpec { id: "app.clipboard.pasteImage", default_chords: &["Ctrl+V"], label: "粘贴剪贴板（图片优先）" },
-    ActionSpec { id: "app.stt.toggle", default_chords: &[], label: "语音转文字（按住 Space）" },
-    ActionSpec { id: "app.live.toggle", default_chords: &["Ctrl+L"], label: "开始/停止实时语音" },
-    ActionSpec { id: "app.agents.hub", default_chords: &["Alt+A"], label: "打开 Agent Hub" },
+    ActionSpec {
+        id: "app.model.cycleForward",
+        default_chords: &["Ctrl+P"],
+        label: "角色模型前移",
+    },
+    ActionSpec {
+        id: "app.model.cycleBackward",
+        default_chords: &["Shift+Ctrl+P"],
+        label: "角色模型后移",
+    },
+    ActionSpec {
+        id: "app.model.selectTemporary",
+        default_chords: &["Alt+P"],
+        label: "临时选模型（本会话）",
+    },
+    ActionSpec {
+        id: "app.model.select",
+        default_chords: &["Alt+M"],
+        label: "模型选择器/设角色",
+    },
+    ActionSpec {
+        id: "app.plan.toggle",
+        default_chords: &["Alt+Shift+P"],
+        label: "切换 plan 模式",
+    },
+    ActionSpec {
+        id: "app.history.search",
+        default_chords: &["Ctrl+R"],
+        label: "搜索 prompt 历史",
+    },
+    ActionSpec {
+        id: "app.tools.expand",
+        default_chords: &["Ctrl+O"],
+        label: "工具输出展开/折叠",
+    },
+    ActionSpec {
+        id: "app.tools.toggleVisibility",
+        default_chords: &["Ctrl+Shift+O"],
+        label: "显示/隐藏工具活动",
+    },
+    ActionSpec {
+        id: "app.thinking.toggle",
+        default_chords: &["Ctrl+T"],
+        label: "思考块显示",
+    },
+    ActionSpec {
+        id: "app.thinking.cycle",
+        default_chords: &["Shift+Tab"],
+        label: "思考等级循环",
+    },
+    ActionSpec {
+        id: "app.editor.external",
+        default_chords: &["Ctrl+G"],
+        label: "用 $EDITOR 编辑草稿",
+    },
+    ActionSpec {
+        id: "app.message.followUp",
+        default_chords: &["Ctrl+Q", "Ctrl+Enter"],
+        label: "排队后续消息",
+    },
+    ActionSpec {
+        id: "app.message.dequeue",
+        default_chords: &["Alt+Up", "Shift+Up"],
+        label: "取回排队消息",
+    },
+    ActionSpec {
+        id: "app.retry",
+        default_chords: &["Alt+R"],
+        label: "重试上一轮失败回合",
+    },
+    ActionSpec {
+        id: "app.display.reset",
+        default_chords: &["Alt+L"],
+        label: "重置终端显示",
+    },
+    ActionSpec {
+        id: "app.clipboard.copyLine",
+        default_chords: &["Alt+Shift+L"],
+        label: "复制当前行",
+    },
+    ActionSpec {
+        id: "app.clipboard.copyPrompt",
+        default_chords: &["Alt+Shift+C"],
+        label: "复制整个 prompt",
+    },
+    ActionSpec {
+        id: "app.clipboard.pasteTextRaw",
+        default_chords: &["Ctrl+Shift+V", "Alt+Shift+V"],
+        label: "粘贴文本（不折叠）",
+    },
+    ActionSpec {
+        id: "app.clipboard.pasteImage",
+        default_chords: &["Ctrl+V"],
+        label: "粘贴剪贴板（图片优先）",
+    },
+    ActionSpec {
+        id: "app.stt.toggle",
+        default_chords: &[],
+        label: "语音转文字（按住 Space）",
+    },
+    ActionSpec {
+        id: "app.live.toggle",
+        default_chords: &["Ctrl+L"],
+        label: "开始/停止实时语音",
+    },
+    ActionSpec {
+        id: "app.agents.hub",
+        default_chords: &["Alt+A"],
+        label: "打开 Agent Hub",
+    },
 ];
 
 #[derive(Debug, Clone, Serialize)]
@@ -182,7 +270,10 @@ fn validate_text(text: &str, path: &Path) -> Result<()> {
                 continue;
             }
         }
-        return Err(AppError::yaml(path, "values must be a string or a list of strings"));
+        return Err(AppError::yaml(
+            path,
+            "values must be a string or a list of strings",
+        ));
     }
     Ok(())
 }
@@ -199,7 +290,9 @@ impl BindingsDoc {
             Err(e) => return Err(AppError::fs(path, e.to_string())),
         };
         if text.trim().is_empty() {
-            return Ok(BindingsDoc { text: String::new() });
+            return Ok(BindingsDoc {
+                text: String::new(),
+            });
         }
         validate_text(&text, path)?;
         Ok(BindingsDoc { text })
@@ -277,13 +370,16 @@ impl BindingsDoc {
         Ok(true)
     }
 
-    pub fn save(&self, path: &Path) -> Result<Option<PathBuf>> {
+    /// Save the managed keybindings file, updating the mirrored agent copy too.
+    pub fn save_managed(&self) -> Result<Option<PathBuf>> {
+        let agent = crate::paths::agent_dir()?;
+        let path = store::content_path(&agent, FILE)?;
         let backup = if path.exists() {
-            store::backup_file(path)?
+            store::backup_file(&path)?
         } else {
             None
         };
-        store::write_atomic(path, self.text.as_bytes())?;
+        store::write_managed(&agent, FILE, self.text.as_bytes())?;
         Ok(backup)
     }
 }
@@ -291,7 +387,10 @@ impl BindingsDoc {
 fn validate_action(raw: &str) -> Result<String> {
     let action = raw.trim();
     if action.is_empty() {
-        return Err(AppError::validation("action", "action id must not be empty"));
+        return Err(AppError::validation(
+            "action",
+            "action id must not be empty",
+        ));
     }
     if action
         .chars()
@@ -324,7 +423,10 @@ fn validate_chord(raw: &str) -> Result<String> {
         return Err(AppError::validation("chord", "chord has an empty segment"));
     }
     if MODIFIERS.contains(&parts[parts.len() - 1]) {
-        return Err(AppError::validation("chord", "chord must end with a key, not a modifier"));
+        return Err(AppError::validation(
+            "chord",
+            "chord must end with a key, not a modifier",
+        ));
     }
     Ok(chord.to_string())
 }
@@ -345,11 +447,7 @@ fn validate_chords(chords: &[String]) -> Result<Vec<String>> {
 }
 
 fn resolve(agent: &Path) -> Result<PathBuf> {
-    let agent_path = agent.join(FILE);
-    if agent_path.exists() {
-        return Ok(agent_path);
-    }
-    store::store_file(FILE)
+    store::content_path(agent, FILE)
 }
 
 pub fn state() -> Result<KeybindingsState> {
@@ -411,7 +509,7 @@ pub fn adopt() -> Result<KeybindingsState> {
     let agent = paths::agent_dir()?;
     store::ensure_store()?;
     let store_path = store::store_file(FILE)?;
-    if !store_path.exists() {
+    if !store_path.exists() && !agent.join(FILE).exists() {
         store::write_atomic(&store_path, HEADER.as_bytes())?;
     }
     store::adopt(&agent, FILE)?;
@@ -428,19 +526,19 @@ pub fn set(action: &str, chords: Vec<String>) -> Result<KeybindingsState> {
     let action = validate_action(action)?;
     let chords = validate_chords(&chords)?;
     adopt()?;
-    let store_path = store::store_file(FILE)?;
-    let mut doc = BindingsDoc::load(&store_path)?;
+    let agent = paths::agent_dir()?;
+    let mut doc = BindingsDoc::load(&resolve(&agent)?)?;
     doc.set(&action, &chords)?;
-    doc.save(&store_path)?;
+    doc.save_managed()?;
     state()
 }
 
 pub fn remove(action: &str) -> Result<KeybindingsState> {
     let action = validate_action(action)?;
-    let store_path = store::store_file(FILE)?;
-    let mut doc = BindingsDoc::load(&store_path)?;
+    let agent = paths::agent_dir()?;
+    let mut doc = BindingsDoc::load(&resolve(&agent)?)?;
     if doc.remove(&action)? {
-        doc.save(&store_path)?;
+        doc.save_managed()?;
     }
     state()
 }

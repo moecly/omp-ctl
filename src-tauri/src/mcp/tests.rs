@@ -149,6 +149,10 @@ fn absent_write_goes_to_store_and_links() {
         store::link_state_rel(&sb.agent(), MCP_FILE).unwrap().kind,
         LinkKind::Managed
     );
-    let names: Vec<String> = list(&sb.agent()).unwrap().into_iter().map(|s| s.name).collect();
+    let names: Vec<String> = list(&sb.agent())
+        .unwrap()
+        .into_iter()
+        .map(|s| s.name)
+        .collect();
     assert_eq!(names, vec!["fresh"]);
 }

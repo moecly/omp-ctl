@@ -147,11 +147,15 @@ pub fn set(agent: &Path, key: &str, value: &str) -> Result<SettingEntry> {
         return Err(AppError::validation("key", "key is required"));
     }
     store::adopt(agent, store::CONFIG)?;
-    let config = store::store_file(store::CONFIG)?;
+    let config = store::content_path(agent, store::CONFIG)?;
     if config.exists() {
         let _ = store::backup_file(&config)?;
     }
     proc::omp(&["config", "set", key, value])?;
+    // omp wrote the file it sees; in copy mode that is the agent path.
+    if store::is_copy_mode(agent, store::CONFIG)? {
+        store::sync_copies(agent)?;
+    }
     let human = proc::omp(&["config", "list"])?;
     entry_for(key, &human)
 }
@@ -161,11 +165,14 @@ pub fn reset(agent: &Path, key: &str) -> Result<SettingEntry> {
         return Err(AppError::validation("key", "key is required"));
     }
     store::adopt(agent, store::CONFIG)?;
-    let config = store::store_file(store::CONFIG)?;
+    let config = store::content_path(agent, store::CONFIG)?;
     if config.exists() {
         let _ = store::backup_file(&config)?;
     }
     proc::omp(&["config", "reset", key])?;
+    if store::is_copy_mode(agent, store::CONFIG)? {
+        store::sync_copies(agent)?;
+    }
     let human = proc::omp(&["config", "list"])?;
     entry_for(key, &human)
 }

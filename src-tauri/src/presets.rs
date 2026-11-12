@@ -79,7 +79,11 @@ pub fn list() -> Result<Vec<PresetEntry>> {
     Ok(entries(&read_file()?))
 }
 
-pub fn save(name: &str, roles_map: BTreeMap<String, String>, order: Vec<String>) -> Result<Vec<PresetEntry>> {
+pub fn save(
+    name: &str,
+    roles_map: BTreeMap<String, String>,
+    order: Vec<String>,
+) -> Result<Vec<PresetEntry>> {
     let name = validate_name(name)?;
     let mut file = read_file()?;
     file.presets.insert(

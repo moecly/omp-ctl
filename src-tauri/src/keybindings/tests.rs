@@ -58,9 +58,16 @@ fn adopt_preserves_bytes_and_management() {
 
     let state = adopt().unwrap();
 
-    assert_eq!(sb.read_store(), SAMPLE, "store must mirror the original bytes");
+    assert_eq!(
+        sb.read_store(),
+        SAMPLE,
+        "store must mirror the original bytes"
+    );
     let meta = fs::symlink_metadata(sb.agent().join(FILE)).unwrap();
-    assert!(meta.file_type().is_symlink(), "agent path must become a symlink");
+    assert!(
+        meta.file_type().is_symlink(),
+        "agent path must become a symlink"
+    );
     assert_eq!(
         fs::read_link(sb.agent().join(FILE)).unwrap(),
         sb.store(),
@@ -105,9 +112,18 @@ fn set_appends_and_preserves_untouched_lines() {
 
     let out = sb.read_store();
     assert!(out.contains("# 说明"), "comment lost: {out}");
-    assert!(out.contains("app.custom.thing: [F5, Ctrl+F5]"), "unknown action lost: {out}");
-    assert!(out.contains("app.thinking.cycle: Tab"), "new line missing: {out}");
-    assert!(out.ends_with("app.thinking.cycle: Tab\n"), "must append at end: {out}");
+    assert!(
+        out.contains("app.custom.thing: [F5, Ctrl+F5]"),
+        "unknown action lost: {out}"
+    );
+    assert!(
+        out.contains("app.thinking.cycle: Tab"),
+        "new line missing: {out}"
+    );
+    assert!(
+        out.ends_with("app.thinking.cycle: Tab\n"),
+        "must append at end: {out}"
+    );
 
     let cycle = state
         .bindings
@@ -174,7 +190,10 @@ fn restore_backup_returns_the_original_file() {
     let state = restore_backup().unwrap();
 
     let meta = fs::symlink_metadata(sb.agent().join(FILE)).unwrap();
-    assert!(!meta.file_type().is_symlink(), "agent path must be a regular file again");
+    assert!(
+        !meta.file_type().is_symlink(),
+        "agent path must be a regular file again"
+    );
     assert_eq!(fs::read_to_string(sb.agent().join(FILE)).unwrap(), SAMPLE);
     assert_eq!(state.link, LinkKind::Unmanaged);
 }
@@ -209,6 +228,9 @@ fn unknown_action_survives_state_and_edits() {
     set("app.custom.thing", vec!["F6".to_string()]).unwrap();
 
     let out = sb.read_store();
-    assert!(out.contains("app.custom.thing: F6"), "unknown action edit lost: {out}");
+    assert!(
+        out.contains("app.custom.thing: F6"),
+        "unknown action edit lost: {out}"
+    );
     assert!(!out.contains("Ctrl+F5"));
 }

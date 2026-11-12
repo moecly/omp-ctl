@@ -12,7 +12,9 @@ struct Sandbox {
 
 impl Sandbox {
     fn new(tag: &str) -> Sandbox {
-        let guard = crate::SANDBOX_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let guard = crate::SANDBOX_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let root = std::env::temp_dir().join(format!(
             "omp-ctl-presets-{tag}-{}-{:?}",
             std::process::id(),
@@ -69,7 +71,10 @@ fn save_then_list_contains_preset() {
     )
     .unwrap();
     let entry = saved.iter().find(|e| e.name == "chatgpt").unwrap();
-    assert_eq!(entry.roles.get("default").map(String::as_str), Some("openai/gpt-4o"));
+    assert_eq!(
+        entry.roles.get("default").map(String::as_str),
+        Some("openai/gpt-4o")
+    );
     assert_eq!(entry.cycle_order, vec!["default"]);
     assert_eq!(list().unwrap().len(), 1);
 }
@@ -86,8 +91,14 @@ fn apply_replaces_roles_and_cycle_order() {
     .unwrap();
     let roles = apply("openai").unwrap();
     assert_eq!(roles.roles.len(), 2, "{:?}", roles.roles);
-    assert_eq!(roles.roles.get("default").map(String::as_str), Some("openai/gpt-4o"));
-    assert_eq!(roles.roles.get("review").map(String::as_str), Some("openai/o3:high"));
+    assert_eq!(
+        roles.roles.get("default").map(String::as_str),
+        Some("openai/gpt-4o")
+    );
+    assert_eq!(
+        roles.roles.get("review").map(String::as_str),
+        Some("openai/o3:high")
+    );
     assert_eq!(roles.cycle_order, vec!["default", "review"]);
     let out = sb.read_config();
     assert!(!out.contains("stale:"), "{out}");
@@ -104,7 +115,11 @@ fn apply_empty_order_writes_empty_list() {
     save("bare", roles_of(&[("default", "axon/one")]), Vec::new()).unwrap();
     let roles = apply("bare").unwrap();
     assert!(roles.cycle_order.is_empty());
-    assert!(sb.read_config().contains("cycleOrder: []"), "{}", sb.read_config());
+    assert!(
+        sb.read_config().contains("cycleOrder: []"),
+        "{}",
+        sb.read_config()
+    );
 }
 
 #[test]
@@ -130,14 +145,22 @@ fn invalid_names_rejected() {
 #[test]
 fn rename_moves_preset_and_rejects_collision() {
     let _sb = Sandbox::new("rename");
-    save("old", roles_of(&[("default", "axon/one")]), vec!["default".into()]).unwrap();
+    save(
+        "old",
+        roles_of(&[("default", "axon/one")]),
+        vec!["default".into()],
+    )
+    .unwrap();
     save("other", roles_of(&[("default", "axon/two")]), Vec::new()).unwrap();
 
     let after = rename("old", "new").unwrap();
     assert!(after.iter().any(|e| e.name == "new"));
     assert!(!after.iter().any(|e| e.name == "old"));
     let moved = after.iter().find(|e| e.name == "new").unwrap();
-    assert_eq!(moved.roles.get("default").map(String::as_str), Some("axon/one"));
+    assert_eq!(
+        moved.roles.get("default").map(String::as_str),
+        Some("axon/one")
+    );
     assert_eq!(moved.cycle_order, vec!["default"]);
 
     match rename("new", "other") {
@@ -148,6 +171,12 @@ fn rename_moves_preset_and_rejects_collision() {
         Err(AppError::Validation { field, .. }) => assert_eq!(field, "name"),
         other => panic!("expected not-found error, got {other:?}"),
     }
-    assert!(rename("new", "new").unwrap().iter().any(|e| e.name == "new"));
-    assert!(list().unwrap().iter().any(|e| e.name == "other"), "collision must not delete");
+    assert!(rename("new", "new")
+        .unwrap()
+        .iter()
+        .any(|e| e.name == "new"));
+    assert!(
+        list().unwrap().iter().any(|e| e.name == "other"),
+        "collision must not delete"
+    );
 }

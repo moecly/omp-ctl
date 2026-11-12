@@ -1,13 +1,14 @@
 use std::fs;
-use std::path::Path;
+use std::path::PathBuf;
 
 use serde_json::{json, Value as JValue};
 
 use crate::error::{AppError, Result};
-use crate::store;
+use crate::{paths, store};
 
-fn config_path() -> Result<std::path::PathBuf> {
-    store::store_file(store::CONFIG)
+/// The file omp reads: the store file for link modes, the agent copy otherwise.
+fn config_path() -> Result<PathBuf> {
+    store::content_path(&paths::agent_dir()?, store::CONFIG)
 }
 
 pub fn read_json() -> Result<JValue> {
@@ -145,7 +146,7 @@ pub fn remove_path(path: &[&str]) -> Result<bool> {
     Ok(false)
 }
 
-fn finish(file: &Path, lines: &[String]) -> Result<()> {
+fn finish(file: &PathBuf, lines: &[String]) -> Result<()> {
     let mut text = lines.join("\n");
     if !text.ends_with('\n') {
         text.push('\n');
@@ -153,7 +154,15 @@ fn finish(file: &Path, lines: &[String]) -> Result<()> {
     if file.exists() {
         let _ = store::backup_file(file)?;
     }
-    store::write_atomic(file, text.as_bytes())
+    let agent = paths::agent_dir()?;
+    // A config.yml that did not exist yet would otherwise be written into the
+    // store with no link, invisible to omp.
+    let adopt = store::link_state_rel(&agent, store::CONFIG)?.kind == store::LinkKind::Absent;
+    store::write_managed(&agent, store::CONFIG, text.as_bytes())?;
+    if adopt {
+        store::adopt_rel(&agent, store::CONFIG)?;
+    }
+    Ok(())
 }
 
 fn indent_of(line: &str) -> usize {

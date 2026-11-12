@@ -305,10 +305,12 @@ pub fn list(agent: &Path, resource: &str) -> Result<Vec<ResourceEntry>> {
 pub fn read(agent: &Path, resource: &str, name: &str) -> Result<String> {
     let spec = spec(resource)?;
     validate_name(name)?;
-    let agent_path = agent.join(rel(spec, name));
+    let rel_path = rel(spec, name);
+    // Files can be mirrored copies, so read through the store-aware helper.
+    // Directories are junctions/links, where the agent path already is the store.
     let target = match spec.layout {
-        Layout::Dir { entry } => agent_path.join(entry),
-        Layout::File { .. } => agent_path.clone(),
+        Layout::Dir { entry } => agent.join(&rel_path).join(entry),
+        Layout::File { .. } => store::content_path(agent, &rel_path)?,
     };
     match fs::read_to_string(&target) {
         Ok(text) => return Ok(text),
@@ -339,8 +341,17 @@ pub fn write(agent: &Path, resource: &str, name: &str, content: &str) -> Result<
     if file.exists() {
         let _ = store::backup_file(&file)?;
     }
-    store::write_atomic(&file, content.as_bytes())?;
-    store::adopt_rel(agent, &rel(spec, name))?;
+    let rel_path = rel(spec, name);
+    match spec.layout {
+        // A directory entry is linked as a whole, so the file inside the store
+        // is already the file omp reads through the agent path.
+        Layout::Dir { .. } => {
+            store::adopt_rel(agent, &rel_path)?;
+            store::write_atomic(&file, content.as_bytes())?;
+        }
+        // A file entry can be mirrored, which needs both sides written.
+        Layout::File { .. } => store::persist_managed(agent, &rel_path, content.as_bytes())?,
+    }
     entry_of(agent, spec, name)
 }
 
@@ -453,13 +464,22 @@ fn unpack_to_temp() -> Result<(std::path::PathBuf, Vec<String>)> {
     ));
     let _ = std::fs::remove_dir_all(&tmp);
     std::fs::create_dir_all(&tmp).map_err(|e| AppError::fs(&tmp, e.to_string()))?;
-    let out = proc::omp(&["agents", "unpack", "--dir", &tmp.to_string_lossy(), "--json"])?;
+    let out = proc::omp(&[
+        "agents",
+        "unpack",
+        "--dir",
+        &tmp.to_string_lossy(),
+        "--json",
+    ])?;
     let mut names: Vec<String> = Vec::new();
     if let Ok(v) = serde_json::from_str::<serde_json::Value>(&out) {
         for key in ["written", "skipped"] {
             if let Some(arr) = v.get(key).and_then(|w| w.as_array()) {
                 for item in arr.iter().filter_map(|w| w.as_str()) {
-                    if let Some(base) = std::path::Path::new(item).file_name().and_then(|s| s.to_str()) {
+                    if let Some(base) = std::path::Path::new(item)
+                        .file_name()
+                        .and_then(|s| s.to_str())
+                    {
                         if !names.contains(&base.to_string()) {
                             names.push(base.to_string());
                         }
@@ -485,7 +505,10 @@ pub fn restore_agent_default(agent: &Path, name: &str) -> Result<ResourceEntry> 
     let src = tmp.join(name);
     if !src.is_file() {
         let _ = std::fs::remove_dir_all(&tmp);
-        return Err(AppError::validation("name", format!("{name} 不是内置 agent，无法恢复默认")));
+        return Err(AppError::validation(
+            "name",
+            format!("{name} 不是内置 agent，无法恢复默认"),
+        ));
     }
     let bytes = std::fs::read(&src).map_err(|e| AppError::fs(&src, e.to_string()))?;
     let _ = std::fs::remove_dir_all(&tmp);

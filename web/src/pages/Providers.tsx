@@ -122,7 +122,7 @@ export function Providers({ param }: { param?: string }) {
               <div key={p.id}>
                 <div
                   className={cn(
-                    "group flex min-h-[44px] cursor-pointer items-center gap-3 px-1 py-2.5 hover:bg-[var(--color-hover)]",
+                    "group flex cursor-pointer flex-col gap-2 px-1 py-2.5 hover:bg-[var(--color-hover)] sm:flex-row sm:items-center sm:justify-between",
                     active === p.id && "text-[var(--color-fg)]",
                   )}
                   onClick={() => openEdit(p.id)}
@@ -136,7 +136,7 @@ export function Providers({ param }: { param?: string }) {
                       {p.baseUrl || "—"}
                     </div>
                   </div>
-                  <div className="flex shrink-0 items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <Badge tone="neutral">{p.api || "—"}</Badge>
                     <Badge tone="neutral">
                       {t.providers.modelCount}: {p.modelCount}
@@ -394,7 +394,7 @@ function ProviderForm({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Field label="ID" hint={originalId ? t.providers.renameHint : t.providers.idHint}>
           <Input mono value={draft.id} onChange={(e) => patch({ id: e.target.value })} />
         </Field>
@@ -439,16 +439,20 @@ function ProviderForm({
         </Field>
       </div>
 
-      <div className="flex items-center gap-3">
-        <Switch checked={draft.authNone} onChange={(v) => patch({ authNone: v })} label={t.providers.authNone} />
-        <span className="text-[13px] text-[var(--color-fg-muted)]">{t.providers.authNone}</span>
-        <Switch
-          checked={draft.disableStrictTools}
-          onChange={(v) => patch({ disableStrictTools: v })}
-          label={t.providers.strictTools}
-        />
-        <span className="text-[13px] text-[var(--color-fg-muted)]">{t.providers.strictTools}</span>
-        <Button size="sm" className="ml-auto" disabled={probing} onClick={probe}>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <label className="flex items-center gap-2 text-[13px] whitespace-nowrap text-[var(--color-fg-muted)]">
+          <Switch checked={draft.authNone} onChange={(v) => patch({ authNone: v })} label={t.providers.authNone} />
+          {t.providers.authNone}
+        </label>
+        <label className="flex items-center gap-2 text-[13px] whitespace-nowrap text-[var(--color-fg-muted)]">
+          <Switch
+            checked={draft.disableStrictTools}
+            onChange={(v) => patch({ disableStrictTools: v })}
+            label={t.providers.strictTools}
+          />
+          {t.providers.strictTools}
+        </label>
+        <Button size="sm" className="ml-auto shrink-0" disabled={probing} onClick={probe}>
           {probing ? t.providers.probing : t.providers.probe}
         </Button>
       </div>
@@ -457,79 +461,93 @@ function ProviderForm({
         {draft.models.map((m, i) => (
           <div
             key={`${m.id}-${i}`}
-            className="grid grid-cols-[1fr_1fr_110px_110px] items-end gap-2 rounded-[var(--radius-md)] border border-[var(--color-border)] p-2"
+            className="flex flex-col gap-3 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3"
           >
-            <Field label="ID">
-              <span className="font-mono text-[12px] text-[var(--color-fg)]">{m.id || "—"}</span>
-            </Field>
-            <Field label={t.common.name}>
-              <Input value={m.name ?? ""} onChange={(e) => patchModel(i, { name: e.target.value || undefined })} />
-            </Field>
-            <Field label={t.models.contextWindow}>
-              <Input
-                type="number"
-                min={0}
-                value={m.contextWindow ?? ""}
-                onChange={(e) =>
-                  patchModel(i, { contextWindow: e.target.value === "" ? undefined : Number(e.target.value) })
-                }
-              />
-            </Field>
-            <Field label={t.models.maxTokens}>
-              <Input
-                type="number"
-                min={0}
-                value={m.maxTokens ?? ""}
-                onChange={(e) =>
-                  patchModel(i, { maxTokens: e.target.value === "" ? undefined : Number(e.target.value) })
-                }
-              />
-            </Field>
-            <Field label={t.providers.api}>
-              <Select
-                value={m.api && !API_PRESETS.includes(m.api) ? "__custom" : (m.api ?? "")}
-                onChange={(e) =>
-                  patchModel(i, { api: e.target.value === "__custom" ? m.api : e.target.value || undefined })
-                }
-              >
-                <option value="">{t.models.unset}</option>
-                {API_PRESETS.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-                {m.api && !API_PRESETS.includes(m.api) && <option value="__custom">{m.api}</option>}
-              </Select>
-            </Field>
-            <Field label={t.models.thinkingLevel}>
-              <Button
-                size="sm"
-                className="w-full justify-between font-mono text-[11px]"
-                onClick={() => openThinking(i)}
-              >
-                <span className="truncate">
-                  {thinkingLabel(m.thinking?.mode, m.thinking?.efforts) || t.models.thinkingDefault}
-                </span>
-                <Pencil size={12} />
-              </Button>
-            </Field>
-            <div className="flex items-center gap-3 pb-1">
-              <Switch checked={m.reasoning} onChange={(v) => patchModel(i, { reasoning: v })} label={t.models.reasoning} />
-              <span className="text-[12px] text-[var(--color-fg-muted)]">{t.models.reasoning}</span>
-              <Switch
-                checked={m.imageInput}
-                onChange={(v) => patchModel(i, { imageInput: v })}
-                label={t.models.imageInput}
-              />
-              <span className="text-[12px] text-[var(--color-fg-muted)]">{t.models.imageInput}</span>
-            </div>
-            <div className="flex justify-end pb-1">
+            <div className="flex items-start gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="truncate font-mono text-[12px] text-[var(--color-fg)]" title={m.id}>
+                  {m.id || "—"}
+                </div>
+                <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                  {m.reasoning && <Badge tone="accent">{t.models.reasoning}</Badge>}
+                  {m.imageInput && <Badge tone="neutral">{t.models.imageInput}</Badge>}
+                </div>
+              </div>
               <IconButton
                 label={t.common.delete}
                 onClick={() => patch({ models: draft.models.filter((_, j) => j !== i) })}
               >
                 <Trash2 size={14} />
               </IconButton>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <Field label={t.common.name}>
+                <Input value={m.name ?? ""} onChange={(e) => patchModel(i, { name: e.target.value || undefined })} />
+              </Field>
+              <Field label={t.providers.api}>
+                <Select
+                  value={m.api && !API_PRESETS.includes(m.api) ? "__custom" : (m.api ?? "")}
+                  onChange={(e) =>
+                    patchModel(i, { api: e.target.value === "__custom" ? m.api : e.target.value || undefined })
+                  }
+                >
+                  <option value="">{t.models.unset}</option>
+                  {API_PRESETS.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                  {m.api && !API_PRESETS.includes(m.api) && <option value="__custom">{m.api}</option>}
+                </Select>
+              </Field>
+              <Field label={t.models.thinkingLevel}>
+                <Button
+                  size="sm"
+                  className="w-full justify-between font-mono text-[11px]"
+                  onClick={() => openThinking(i)}
+                >
+                  <span className="truncate">
+                    {thinkingLabel(m.thinking?.mode, m.thinking?.efforts) || t.models.thinkingDefault}
+                  </span>
+                  <Pencil size={12} />
+                </Button>
+              </Field>
+              <Field label={t.models.contextWindow}>
+                <Input
+                  type="number"
+                  min={0}
+                  value={m.contextWindow ?? ""}
+                  onChange={(e) =>
+                    patchModel(i, { contextWindow: e.target.value === "" ? undefined : Number(e.target.value) })
+                  }
+                />
+              </Field>
+              <Field label={t.models.maxTokens}>
+                <Input
+                  type="number"
+                  min={0}
+                  value={m.maxTokens ?? ""}
+                  onChange={(e) =>
+                    patchModel(i, { maxTokens: e.target.value === "" ? undefined : Number(e.target.value) })
+                  }
+                />
+              </Field>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+              <label className="flex items-center gap-2 text-[12px] whitespace-nowrap text-[var(--color-fg-muted)]">
+                <Switch checked={m.reasoning} onChange={(v) => patchModel(i, { reasoning: v })} label={t.models.reasoning} />
+                {t.models.reasoning}
+              </label>
+              <label className="flex items-center gap-2 text-[12px] whitespace-nowrap text-[var(--color-fg-muted)]">
+                <Switch
+                  checked={m.imageInput}
+                  onChange={(v) => patchModel(i, { imageInput: v })}
+                  label={t.models.imageInput}
+                />
+                {t.models.imageInput}
+              </label>
             </div>
           </div>
         ))}

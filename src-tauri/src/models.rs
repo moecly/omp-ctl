@@ -261,7 +261,7 @@ fn set_num(m: &mut Map<String, JValue>, key: &str, value: Option<u64>) {
 }
 
 fn models_path() -> Result<PathBuf> {
-    Ok(store::store_file(store::MODELS)?)
+    store::content_path(&paths::agent_dir()?, store::MODELS)
 }
 
 pub fn load_providers() -> Result<Vec<Provider>> {
@@ -304,11 +304,11 @@ pub fn list_refs() -> Result<Vec<ModelRef>> {
     Ok(refs)
 }
 
-/// Route every models.yml read/write through the store link.
+/// Adopt models.yml and return the file that holds its content.
 pub fn ensure_linked() -> Result<PathBuf> {
     let agent = paths::agent_dir()?;
     store::adopt(&agent, store::MODELS)?;
-    store::store_file(store::MODELS)
+    store::content_path(&agent, store::MODELS)
 }
 
 const DEFAULT_EFFORTS: [&str; 5] = ["minimal", "low", "medium", "high", "xhigh"];
@@ -375,7 +375,7 @@ pub fn save_provider(p: &Provider) -> Result<()> {
     let path = ensure_linked()?;
     let mut doc = YamlDoc::load(&path)?;
     doc.set(&p.id, &p.to_value()?)?;
-    doc.save(&path)?;
+    doc.save_managed(store::MODELS)?;
     Ok(())
 }
 
@@ -384,7 +384,7 @@ pub fn delete_provider(id: &str) -> Result<bool> {
     let mut doc = YamlDoc::load(&path)?;
     let removed = doc.remove(id)?;
     if removed {
-        doc.save(&path)?;
+        doc.save_managed(store::MODELS)?;
     }
     Ok(removed)
 }
@@ -665,9 +665,11 @@ pub fn rewrite_default_roles(old_id: &str, new_id: &str) -> Result<Vec<String>> 
     if !changed.is_empty() {
         let text = serde_yaml::to_string(&root)
             .map_err(|e| AppError::internal(format!("cannot serialize config.yml: {e}")))?;
-        let path = store::store_file(store::CONFIG)?;
+        let agent = paths::agent_dir()?;
+        let _ = store::adopt(&agent, store::CONFIG)?;
+        let path = store::content_path(&agent, store::CONFIG)?;
         let _ = store::backup_file(&path)?;
-        store::write_atomic(&path, text.as_bytes())?;
+        store::write_managed(&agent, store::CONFIG, text.as_bytes())?;
     }
     Ok(changed)
 }

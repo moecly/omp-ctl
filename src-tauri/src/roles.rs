@@ -72,7 +72,11 @@ pub fn delete_role(role: &str) -> Result<ModelRoles> {
     config_edit::remove_path(&["modelRoles", &role])?;
     let current = list()?;
     if current.cycle_order.iter().any(|r| r == &role) {
-        let kept: Vec<String> = current.cycle_order.into_iter().filter(|r| r != &role).collect();
+        let kept: Vec<String> = current
+            .cycle_order
+            .into_iter()
+            .filter(|r| r != &role)
+            .collect();
         return set_cycle_order(&kept);
     }
     Ok(current)

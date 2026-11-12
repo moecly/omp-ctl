@@ -14,7 +14,7 @@ export type ThemePref = "dark" | "light" | "auto";
 
 export function loadThemePref(): ThemePref {
   const v = localStorage.getItem(KEY_THEME);
-  return v === "dark" || v === "light" || v === "auto" ? v : "dark";
+  return v === "dark" || v === "light" || v === "auto" ? v : "light";
 }
 
 export function saveTheme(v: ThemePref) {

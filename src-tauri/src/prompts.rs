@@ -79,11 +79,7 @@ fn state_of(spec: &PromptSpec, agent: &std::path::Path) -> Result<PromptState> {
     let link: LinkState = store::link_state(agent, spec.name)?;
     let store_path = store::store_file(spec.name)?;
     let store_exists = store_path.exists();
-    let store_content = if store_exists {
-        store::read_content(spec.name).ok()
-    } else {
-        None
-    };
+    let store_content = store::read_managed(agent, spec.name).ok().flatten();
     Ok(PromptState {
         key: spec.key.to_string(),
         name: spec.name.to_string(),
@@ -112,7 +108,7 @@ pub fn set_enabled(key: &str, enabled: bool) -> Result<PromptState> {
 
     if enabled {
         store::ensure_store()?;
-        if !store::store_file(spec.name)?.exists() {
+        if !store::content_path(&agent, spec.name)?.exists() {
             store::write_content(spec.name, spec.default_content)?;
         }
         store::adopt(&agent, spec.name)?;
@@ -124,23 +120,14 @@ pub fn set_enabled(key: &str, enabled: bool) -> Result<PromptState> {
 
 pub fn read(key: &str) -> Result<String> {
     let spec = spec(key)?;
-    match store::read_content(spec.name) {
-        Ok(text) => Ok(text),
-        Err(e) => {
-            if store::store_file(spec.name)?.exists() {
-                Err(e)
-            } else {
-                Ok(spec.default_content.to_string())
-            }
-        }
-    }
+    Ok(store::read_managed(&paths::agent_dir()?, spec.name)?
+        .unwrap_or_else(|| spec.default_content.to_string()))
 }
 
 pub fn write(key: &str, content: &str) -> Result<PromptState> {
     let spec = spec(key)?;
     let agent = paths::agent_dir()?;
-    store::write_content(spec.name, content)?;
-    store::adopt(&agent, spec.name)?;
+    store::persist_managed(&agent, spec.name, content.as_bytes())?;
     state_of(spec, &agent)
 }
 

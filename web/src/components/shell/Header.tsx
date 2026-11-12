@@ -21,7 +21,7 @@ export function Header({ route, onOpenPalette }: { route: Route; onOpenPalette: 
           className="flex h-7 items-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-border)] pl-2.5 pr-1.5 text-[12px] text-[var(--color-fg-subtle)] hover:bg-[var(--color-hover)] hover:text-[var(--color-fg)]"
         >
           <Search size={13} />
-          <span>{t.shell.commandPaletteHint}</span>
+          <span className="hidden sm:inline">{t.shell.commandPaletteHint}</span>
           <Kbd>⌘K</Kbd>
         </button>
         <Button size="sm" variant="ghost" onClick={() => setLocale(locale === "zh" ? "en" : "zh")}>

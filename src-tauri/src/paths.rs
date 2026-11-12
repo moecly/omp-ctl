@@ -5,12 +5,28 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::{AppError, Result};
 
+/// User home directory.
+///
+/// Windows Explorer launches set `USERPROFILE`, not `HOME`, so reading only
+/// `HOME` made every path resolve under the process working directory while
+/// omp (which uses `os.homedir()`) kept reading `%USERPROFILE%\.omp`.
 pub fn home() -> Result<PathBuf> {
-    match std::env::var_os("HOME") {
-        Some(v) if !v.is_empty() => Ok(PathBuf::from(v)),
-        _ => std::env::current_dir()
-            .map_err(|e| AppError::internal(format!("cannot resolve HOME or cwd: {e}"))),
+    for key in ["HOME", "USERPROFILE"] {
+        if let Some(v) = std::env::var_os(key).filter(|v| !v.is_empty()) {
+            return Ok(PathBuf::from(v));
+        }
     }
+    let drive = std::env::var_os("HOMEDRIVE");
+    let leaf = std::env::var_os("HOMEPATH");
+    if let (Some(drive), Some(leaf)) = (drive, leaf) {
+        if !drive.is_empty() && !leaf.is_empty() {
+            let mut path = PathBuf::from(drive);
+            path.push(leaf);
+            return Ok(path);
+        }
+    }
+    std::env::current_dir()
+        .map_err(|e| AppError::internal(format!("cannot resolve HOME or cwd: {e}")))
 }
 
 pub fn store_dir() -> Result<PathBuf> {

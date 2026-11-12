@@ -21,16 +21,8 @@ pub struct McpServer {
     pub raw: JValue,
 }
 
-fn file_path() -> Result<std::path::PathBuf> {
-    store::store_file(MCP_FILE)
-}
-
 fn resolve(agent: &Path) -> Result<std::path::PathBuf> {
-    let agent_path = agent.join(MCP_FILE);
-    if agent_path.exists() {
-        return Ok(agent_path);
-    }
-    Ok(file_path()?)
+    store::content_path(agent, MCP_FILE)
 }
 
 fn read_root(agent: &Path) -> Result<Map<String, JValue>> {
@@ -103,18 +95,15 @@ pub fn list(agent: &Path) -> Result<Vec<McpServer>> {
 }
 
 fn write_root(agent: &Path, root: &Map<String, JValue>) -> Result<()> {
-    let kind = store::link_state_rel(agent, MCP_FILE)?.kind;
-    let path = if kind == LinkKind::Managed {
-        file_path()?
-    } else {
-        resolve(agent)?
-    };
+    let state = store::link_state_rel(agent, MCP_FILE)?;
+    let path = resolve(agent)?;
     if path.exists() {
         let _ = store::backup_file(&path)?;
     }
     let text = serde_json::to_string_pretty(&JValue::Object(root.clone()))?;
-    store::write_atomic(&path, format!("{text}\n").as_bytes())?;
-    if kind == LinkKind::Absent {
+    let bytes = format!("{text}\n");
+    store::write_managed(agent, MCP_FILE, bytes.as_bytes())?;
+    if state.kind == LinkKind::Absent {
         store::adopt_rel(agent, MCP_FILE)?;
     }
     Ok(())

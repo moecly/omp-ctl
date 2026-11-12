@@ -251,6 +251,7 @@ impl YamlDoc {
         Ok(true)
     }
 
+    #[cfg(test)]
     pub fn save(&self, path: &Path) -> Result<Option<std::path::PathBuf>> {
         let backup = if path.exists() {
             store::backup_file(path)?
@@ -258,6 +259,19 @@ impl YamlDoc {
             None
         };
         store::write_atomic(path, self.text.as_bytes())?;
+        Ok(backup)
+    }
+
+    /// Save a managed agent entry, updating both sides when it is mirrored.
+    pub fn save_managed(&self, rel: &str) -> Result<Option<std::path::PathBuf>> {
+        let agent = crate::paths::agent_dir()?;
+        let path = store::content_path(&agent, rel)?;
+        let backup = if path.exists() {
+            store::backup_file(&path)?
+        } else {
+            None
+        };
+        store::write_managed(&agent, rel, self.text.as_bytes())?;
         Ok(backup)
     }
 }

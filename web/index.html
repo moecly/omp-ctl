@@ -12,7 +12,8 @@
         try {
           var p = localStorage.getItem("omp-ctl.theme");
           var light = window.matchMedia("(prefers-color-scheme: light)").matches;
-          document.documentElement.dataset.theme = p === "light" || (p === "auto" && light) ? "light" : "dark";
+          document.documentElement.dataset.theme =
+            p === "dark" ? "dark" : p === "auto" ? (light ? "light" : "dark") : "light";
         } catch (e) {}
       })();
     </script>

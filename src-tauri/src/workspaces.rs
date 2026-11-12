@@ -92,17 +92,7 @@ pub fn clear_active() -> Result<()> {
 }
 
 fn remove_if_exists(path: &Path) -> Result<()> {
-    match fs::symlink_metadata(path) {
-        Ok(m) => {
-            if m.is_dir() && !m.file_type().is_symlink() {
-                fs::remove_dir_all(path).map_err(|e| AppError::fs(path, e.to_string()))
-            } else {
-                fs::remove_file(path).map_err(|e| AppError::fs(path, e.to_string()))
-            }
-        }
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(e) => Err(AppError::fs(path, e.to_string())),
-    }
+    store::remove_entry(path)
 }
 
 fn copy_dir_all(src: &Path, dst: &Path) -> Result<()> {
@@ -171,6 +161,8 @@ fn disabled_agents_now() -> Vec<String> {
 
 fn capture_into(dir: &Path, name: &str) -> Result<Manifest> {
     let agent = paths::agent_dir()?;
+    // Snapshot the store, so mirrored copies have to be current first.
+    store::sync_copies(&agent)?;
     let model_roles = roles::list()?;
     let mut prompts_enabled = BTreeMap::new();
     let mut resources_enabled: BTreeMap<String, BTreeMap<String, bool>> = BTreeMap::new();
