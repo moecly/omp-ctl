@@ -73,9 +73,10 @@ jobs:
       image: archlinux:base-devel
       options: --user root
     steps:
-      # base-devel 镜像里没有 git/openssh，必须先装（checkout 也要用 git）
+      # 必须用 -Syu 而不是 -Sy：`-Sy` 是部分升级，镜像里的 openssl 4.x 会与
+      # 基础镜像中依赖 libcrypto.so=3-64 的 curl/pacman/sudo 冲突，导致事务无法解析。
       - name: 安装容器内依赖
-        run: pacman -Sy --noconfirm --needed git openssh
+        run: pacman -Syu --noconfirm --needed git openssh
 
       - uses: actions/checkout@v4
 
