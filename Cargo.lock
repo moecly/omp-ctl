@@ -2146,7 +2146,7 @@ dependencies = [
 
 [[package]]
 name = "omp-ctl"
-version = "0.8.4"
+version = "0.8.5"
 dependencies = [
  "reqwest 0.12.28",
  "serde",
