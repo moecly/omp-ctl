@@ -273,6 +273,16 @@ export type ResourceId =
   | "extensions"
   | "tools";
 
+/** Resource id → nav string key, so UI labels come from i18n, never the raw id. */
+export const RESOURCE_I18N_KEY: Record<ResourceId, string> = {
+  skills: "skills",
+  agents: "agents",
+  hooks_pre: "hooksPre",
+  hooks_post: "hooksPost",
+  extensions: "extensions",
+  tools: "tools",
+};
+
 export const RESOURCE_IDS: ResourceId[] = [
   "skills",
   "agents",
@@ -281,3 +291,17 @@ export const RESOURCE_IDS: ResourceId[] = [
   "extensions",
   "tools",
 ];
+
+export interface ImportedFont {
+  family: string;
+  fileName: string;
+  path: string;
+  size: number;
+}
+
+export interface LocaleInfo {
+  /** Best match among the locales the UI ships. */
+  system: string;
+  /** Raw locale tags the OS reported. */
+  detected: string[];
+}

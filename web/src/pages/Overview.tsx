@@ -5,7 +5,7 @@ import { useAsync } from "../hooks/useAsync";
 import { ipc } from "../lib/ipc";
 import { navigate } from "../lib/router";
 import { toast } from "../lib/toast";
-import type { LinkKind, Overview as OverviewData } from "../lib/types";
+import { RESOURCE_I18N_KEY, type LinkKind, type Overview as OverviewData, type ResourceId } from "../lib/types";
 import { Badge, Button, Card, IconButton, KeyValue } from "../components/ui";
 import { PageSkeleton, PageError } from "../components/ui/PageState";
 import { EmptyState } from "../components/ui";
@@ -121,7 +121,12 @@ export function Overview() {
           )}
         </Card>
         <Card title={t.overview.resourcesTitle}>
-          <KeyValue rows={Object.entries(data.resourceCounts).map(([id, count]) => [id, String(count)])} />
+          <KeyValue
+            rows={Object.entries(data.resourceCounts).map(([id, count]) => [
+              (t.nav as Record<string, string>)[RESOURCE_I18N_KEY[id as ResourceId] ?? ""] ?? id,
+              String(count),
+            ])}
+          />
         </Card>
       </div>
 

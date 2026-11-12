@@ -13,11 +13,15 @@ export function PageContainer({
 }) {
   return (
     <div className="flex-1 min-h-0 overflow-y-auto">
-      <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-5 px-6 py-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+      <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-6 px-6 py-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
           <div className="min-w-0">
-            <h1 className="text-[18px] font-semibold tracking-[-0.01em] text-[var(--color-fg)]">{title}</h1>
-            {description && <p className="mt-0.5 text-[12px] text-[var(--color-fg-subtle)]">{description}</p>}
+            <h1 className="text-[26px] font-medium leading-tight tracking-[-0.015em] text-[var(--color-fg)]">
+              {title}
+            </h1>
+            {description && (
+              <p className="mt-1 text-[13px] leading-relaxed text-[var(--color-fg-subtle)]">{description}</p>
+            )}
           </div>
           {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
         </div>

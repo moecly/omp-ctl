@@ -8,8 +8,9 @@ Tauri 2 桌面 GUI，管理 omp 配置。`~/.omp-ctl/` 为唯一真实来源，
 ```
 web/                    React + TypeScript + Vite + Tailwind v4 前端（bun 管理依赖）
   src/
-    styles/app.css      唯一样式入口：@import "tailwindcss" + @theme token + @layer base
-    lib/                ipc（Tauri 命令封装，读经 queryCache 做 30s SWR 缓存）、types（后端 DTO）、modelMeta（API/思考等级
+    styles/app.css      唯一样式入口：M3 token 层（@theme 映射 --m3-*）+ 字体 + 动效；palettes.css 由
+                        `bun run gen:palettes` 生成（scripts/gen-palettes.mjs，M3 tonal-spot 10 套配色）
+    lib/                appearance（配色/字体）、settingLabels（设置项中文名）、ipc（Tauri 命令封装，读经 queryCache 做 30s SWR 缓存）、types（后端 DTO）、modelMeta（API/思考等级
                         常量与 selector 拼接）、chord（KeyboardEvent → 组合键字符串）、router、i18n、prefs、toast、
                         hotkeys、format、cn（clsx+tailwind-merge）、scanRows（探测对话框行合并：上游在线 + 已配置但上游已移除）
     hooks/              useAsync（加载/错误/reload）、useApp（全局上下文）
@@ -20,7 +21,8 @@ web/                    React + TypeScript + Vite + Tailwind v4 前端（bun 管
     pages/              15 个路由页面（含 Backup 快照导出/导入、Keybindings 快捷键、Workspaces 工作区）
 dist/                   `just web-build` 产物（gitignore，Tauri frontendDist）
 src-tauri/src/
-  lib.rs                Tauri 命令注册（67 个：62 + 5 工作区）+ SANDBOX_LOCK(cfg test)；命令一律 async + offload(spawn_blocking)，否则阻塞体跑在 IPC 主线程会卡窗口
+  fonts.rs              `~/.omp-ctl/fonts/`：导入/列出/删除/读取自定义字体（`fonts/tests.rs`）
+  lib.rs                Tauri 命令注册（71 个：66 + 5 工作区）+ SANDBOX_LOCK(cfg test)；命令一律 async + offload(spawn_blocking)，否则阻塞体跑在 IPC 主线程会卡窗口
   main.rs               3 行，调用 omp_ctl_lib::run()
   error.rs              AppError（serde tag="kind"）；Result<T, E = AppError>
   paths.rs              home/store_dir/agent_dir 解析 + DirInfo/DirSource（agent_dir 经 OnceLock 进程内缓存，避免每命令起 omp 子进程；cfg(test) 不缓存）
@@ -43,6 +45,7 @@ src-tauri/src/
   harness.rs            无 Tauri 的入口，供集成测试调用
 src-tauri/tests/
   real_agent_dir.rs     针对真实 agent 目录的集成测试
+web/public/fonts/          内置寒蝉半圆体（ChillRoundM，Zen Maru Gothic 的 pyftsubset 子集，OFL-1.1，见同目录 OFL.txt）
 src-tauri/icons/         `cargo tauri icon` 从 `source.svg` 生成的图标集（`bundle.icon` 引用）；改图标只改 source.svg 再重新生成
 packaging/aur/           AUR 包：每个包一个子目录（omp-ctl 源码构建 / omp-ctl-bin 展开 release 的 .deb）+ publish.sh（本地与 CI 共用的发布脚本）
 .github/workflows/release.yml  推送 tag `v*` 触发三平台打包（Linux 仅 deb+rpm，无 AppImage）；`aur` job 随后调 packaging/aur/publish.sh 推 AUR（secret `AUR_SSH_KEY`），拆成独立 workflow 不会被 GITHUB_TOKEN 的 release 事件触发
@@ -53,7 +56,7 @@ packaging/aur/           AUR 包：每个包一个子目录（omp-ctl 源码构�
 * [`Result`] 别名必须带默认错误参数：`pub type Result<T, E = AppError>`（rule `rs-result-type`）。
 * 前端只用 `web/src/components/ui` 内原语，不引入新 UI 依赖；代码编辑用 `textarea` + 行号栏（`CodeEditor`），不用 CodeMirror。
 * 样式统一用 Tailwind v4 工具类；类名拼接一律走 `cn()`（`web/src/lib/cn.ts`），不手写模板字符串。
-* 主题为 `dark`/`light`/`auto` 三态，存 localStorage，默认 `light`；`auto` 跟随 `prefers-color-scheme`。解析后的主题写入 `document.documentElement.dataset.theme`，浅色靠 `app.css` 的 `:root[data-theme="light"]` 变量覆盖实现，组件内不写 `dark:` 变体；色值 token 定义在 `@theme` 中，通过 `var(--color-*)` 使用。`index.html` 的内联脚本先按 localStorage 定一次主题，避免首帧闪深色；路由切换在 `App.tsx` 用 `.page-enter` 做 150ms 入场动画（`prefers-reduced-motion` 下关闭）。
+* 一切视觉走 Material Design 3：`app.css` 只声明 token 与动效，配色来自 `palettes.css` 的 `--m3-*`（10 套 tonal-spot 方案），组件一律用 `var(--color-*)`／`var(--radius-*)`，不写 `dark:` 变体。主题 `dark`/`light`/`auto` 与配色、字体都存 localStorage，默认浅色 + 寒蝉半圆体；`auto` 跟随 `prefers-color-scheme`，语言默认跟随系统（`system_locale`）。切换配色时把 `--m3-*` 直接写到 `documentElement` 并插入一个从点击处扩散的圆盘（`.theme-spread`），不做渐变交叉淡入；`index.html` 的内联脚本先定一次配色与色调，避免首帧闪烁。图标统一由 `svg.lucide` 的 `stroke-width`/圆角衔接覆盖，不在调用处逐个调线宽。
 * 每个页面最外层必须用 `PageContainer`（`{title, description?, actions?, children}`）；列表用全宽 `divide-y` 或 `<table>`，不叠 Card。
 * `web/src/lib/ipc.ts` 的参数名必须与 Rust `#[tauri::command]` 参数名逐字一致（如 `oldId`/`newId`）。
 * 所有写盘走 `store::write_atomic`，写前经 `backup_file` 生成 `.bak.<ts>`。

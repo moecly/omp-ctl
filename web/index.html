@@ -8,12 +8,21 @@
   <body>
     <div id="root"></div>
     <script>
+      /*
+       * First-paint appearance: sets the tone and palette data attributes so the
+       * static `palettes.css` blocks apply before React mounts. Without this the
+       * window would paint one palette and then switch, which is the flash the
+       * palette system is meant to avoid.
+       */
       (function () {
         try {
-          var p = localStorage.getItem("omp-ctl.theme");
+          var root = document.documentElement;
+          var pref = localStorage.getItem("omp-ctl.theme");
           var light = window.matchMedia("(prefers-color-scheme: light)").matches;
-          document.documentElement.dataset.theme =
-            p === "dark" ? "dark" : p === "auto" ? (light ? "light" : "dark") : "light";
+          var dark = pref === "dark" || (pref === "auto" && !light) ? true : pref === "light" ? false : !light;
+          root.dataset.tone = dark ? "dark" : "light";
+          root.dataset.theme = dark ? "dark" : "light";
+          root.dataset.palette = localStorage.getItem("omp-ctl.palette") || "indigo";
         } catch (e) {}
       })();
     </script>

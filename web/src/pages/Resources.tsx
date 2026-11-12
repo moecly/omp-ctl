@@ -23,12 +23,12 @@ import {
   Select,
   Switch,
 } from "../components/ui";
+import { RESOURCE_I18N_KEY } from "../lib/types";
 import { PageError, PageSkeleton } from "../components/ui/PageState";
 import { PageContainer } from "../components/shell/PageContainer";
 
 function resourceLabel(resource: ResourceId, t: { nav: Record<string, string> }): string {
-  if (resource === "hooks_pre" || resource === "hooks_post") return t.nav.hooks;
-  return t.nav[resource] ?? resource;
+  return t.nav[RESOURCE_I18N_KEY[resource]] ?? resource;
 }
 
 export function Resources({ resource }: { resource: ResourceId }) {

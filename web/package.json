@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit",
+    "gen:palettes": "bun scripts/gen-palettes.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.5.0",
@@ -16,6 +17,7 @@
     "tailwind-merge": "^3.7.0"
   },
   "devDependencies": {
+    "@material/material-color-utilities": "0.4.0",
     "@tailwindcss/vite": "^4.3.3",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",

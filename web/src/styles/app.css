@@ -1,35 +1,54 @@
 @import "tailwindcss";
+@import "./palettes.css";
 
+@font-face {
+  font-family: "ChillRoundM";
+  src: url("/fonts/ChillRoundM-SemiBold.woff2") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/*
+ * Material Design 3 token layer.
+ *
+ * Colour comes from `palettes.css`, which ships one block per palette and tone.
+ * Every component reads the legacy `--color-*` names below, so a palette swap
+ * only has to rewrite `--m3-*` and everything follows.
+ */
 @theme {
-  --color-bg: #0c0c0e;
-  --color-surface: #121214;
-  --color-surface-2: #17171a;
-  --color-hover: #18181b;
-  --color-active: #1f1f23;
-  --color-border: rgba(255, 255, 255, 0.07);
-  --color-border-strong: rgba(255, 255, 255, 0.12);
-  --color-fg: #f4f4f5;
-  --color-fg-muted: #a1a1aa;
-  --color-fg-subtle: #71717a;
-  --color-accent: #6366f1;
-  --color-accent-hover: #7075f5;
-  --color-accent-fg: #ffffff;
-  --color-overlay: rgba(0, 0, 0, 0.5);
-  --color-success: #22c55e;
-  --color-warning: #eab308;
-  --color-danger: #ef4444;
-  --color-success-soft: rgba(34, 197, 94, 0.14);
-  --color-warning-soft: rgba(234, 179, 8, 0.14);
-  --color-danger-soft: rgba(239, 68, 68, 0.14);
-  --color-scrollbar-thumb: rgba(255, 255, 255, 0.1);
-  --color-scrollbar-thumb-hover: rgba(255, 255, 255, 0.18);
+  --color-bg: var(--m3-surface);
+  --color-surface: var(--m3-surface-container-low);
+  --color-surface-2: var(--m3-surface-container);
+  --color-hover: var(--m3-surface-container-high);
+  --color-active: var(--m3-surface-container-highest);
+  --color-border: var(--m3-outline-variant);
+  --color-border-strong: var(--m3-outline);
+  --color-fg: var(--m3-on-surface);
+  --color-fg-muted: var(--m3-on-surface-variant);
+  --color-fg-subtle: color-mix(in srgb, var(--m3-on-surface-variant) 72%, transparent);
+  --color-accent: var(--m3-primary);
+  --color-accent-hover: color-mix(in srgb, var(--m3-primary) 88%, var(--m3-on-primary));
+  --color-accent-fg: var(--m3-on-primary);
+  --color-accent-soft: var(--m3-primary-container);
+  --color-overlay: color-mix(in srgb, var(--m3-scrim, #000) 32%, transparent);
+  --color-success: var(--m3-primary);
+  --color-warning: #f59e0b;
+  --color-danger: var(--m3-error);
+  --color-success-soft: var(--m3-primary-container);
+  --color-warning-soft: color-mix(in srgb, #f59e0b 16%, var(--m3-surface));
+  --color-danger-soft: var(--m3-error-container);
+  --color-scrollbar-thumb: color-mix(in srgb, var(--m3-outline) 55%, transparent);
+  --color-scrollbar-thumb-hover: var(--m3-outline);
 
-  --radius-sm: 5px;
-  --radius-md: 7px;
-  --radius-lg: 10px;
-  --radius-xl: 14px;
+  /* M3 shape scale. */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 28px;
 
-  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif;
+  --font-sans: "ChillRoundM", -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
   --text-xs: 11px;
@@ -37,45 +56,33 @@
   --text-base: 13px;
   --text-md: 14px;
   --text-lg: 16px;
-  --text-xl: 18px;
+  --text-xl: 22px;
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
+  /* M3 elevation levels, colour-mixed so they read on any palette. */
+  --shadow-sm: 0 1px 2px color-mix(in srgb, var(--m3-shadow, #000) 16%, transparent);
+  --shadow-md:
+    0 1px 3px color-mix(in srgb, var(--m3-shadow, #000) 18%, transparent),
+    0 4px 8px -2px color-mix(in srgb, var(--m3-shadow, #000) 14%, transparent);
+  --shadow-lg:
+    0 2px 6px color-mix(in srgb, var(--m3-shadow, #000) 20%, transparent),
+    0 12px 24px -6px color-mix(in srgb, var(--m3-shadow, #000) 18%, transparent);
+
+  /* M3 motion: emphasised easing, three durations. */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --ease-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --dur-short: 150ms;
+  --dur-medium: 250ms;
+  --dur-long: 400ms;
 }
 
 @layer base {
   :root {
-    color-scheme: dark;
+    color-scheme: light;
   }
 
-  :root[data-theme="light"] {
-    color-scheme: light;
-    --color-bg: #f4f4f5;
-    --color-surface: #ffffff;
-    --color-surface-2: #fafafa;
-    --color-hover: #e9e9ec;
-    --color-active: #dedee2;
-    --color-border: rgba(0, 0, 0, 0.08);
-    --color-border-strong: rgba(0, 0, 0, 0.16);
-    --color-fg: #18181b;
-    --color-fg-muted: #52525b;
-    --color-fg-subtle: #71717a;
-    --color-accent: #4f46e5;
-    --color-accent-hover: #4338ca;
-    --color-accent-fg: #ffffff;
-    --color-overlay: rgba(0, 0, 0, 0.35);
-    --color-success: #16a34a;
-    --color-warning: #a16207;
-    --color-danger: #dc2626;
-    --color-success-soft: rgba(22, 163, 74, 0.12);
-    --color-warning-soft: rgba(161, 98, 7, 0.12);
-    --color-danger-soft: rgba(220, 38, 38, 0.1);
-    --color-scrollbar-thumb: rgba(0, 0, 0, 0.16);
-    --color-scrollbar-thumb-hover: rgba(0, 0, 0, 0.3);
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.08);
-    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
-    --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.16);
+  :root[data-tone="dark"] {
+    color-scheme: dark;
   }
 
   *,
@@ -96,7 +103,7 @@
     color: var(--color-fg);
     font-family: var(--font-sans);
     font-size: 13px;
-    line-height: 1.45;
+    line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     overflow: hidden;
   }
@@ -125,7 +132,19 @@
 
   :focus-visible {
     outline: 2px solid var(--color-accent);
-    outline-offset: 1px;
+    outline-offset: 2px;
+  }
+
+  /*
+   * M3 icons read as rounded and reasonably heavy. Lucide defaults to a 2px
+   * stroke on a 24px grid, which becomes hairline at the 14–16px sizes used
+   * here, so every icon gets a thicker stroke and round joins in one place
+   * instead of per call site.
+   */
+  svg.lucide {
+    stroke-width: 2.15;
+    stroke-linecap: round;
+    stroke-linejoin: round;
   }
 
   button,
@@ -134,14 +153,21 @@
   select,
   textarea,
   [role="button"] {
-    transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease;
+    transition:
+      background-color var(--dur-short) var(--ease-standard),
+      border-color var(--dur-short) var(--ease-standard),
+      color var(--dur-short) var(--ease-standard),
+      box-shadow var(--dur-short) var(--ease-standard),
+      transform var(--dur-short) var(--ease-standard),
+      opacity var(--dur-short) var(--ease-standard);
   }
 }
 
+/* Page swap: M3 shared-axis style fade + small rise. */
 @keyframes page-enter {
   from {
     opacity: 0;
-    transform: translateY(3px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
@@ -150,11 +176,126 @@
 }
 
 .page-enter {
-  animation: page-enter 150ms ease-out;
+  animation: page-enter var(--dur-medium) var(--ease-decelerate);
+}
+
+/*
+ * Theme spread, Telegram style: a disc of the incoming palette grows from the
+ * control that was pressed and fades as it passes, so the colour change reads
+ * as travelling across the app instead of cross-fading.
+ *
+ * The palette itself is swapped on the same frame (a cross-fade is exactly what
+ * this replaces), so the disc is a wash over already-correct colours rather
+ * than a screenshot of the old UI — that keeps text legible throughout.
+ */
+@keyframes theme-spread {
+  from {
+    clip-path: circle(0 at var(--spread-x, 50%) var(--spread-y, 50%));
+    opacity: 0.5;
+  }
+  60% {
+    opacity: 0.32;
+  }
+  to {
+    clip-path: circle(var(--spread-r, 150vmax) at var(--spread-x, 50%) var(--spread-y, 50%));
+    opacity: 0;
+  }
+}
+
+.theme-spread {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  pointer-events: none;
+  contain: strict;
+  background: var(--m3-primary);
+  animation: theme-spread var(--dur-long) var(--ease-decelerate) forwards;
+}
+
+/* Toast enter/exit, so a dismissal does not snap. */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes toast-out {
+  to {
+    opacity: 0;
+    transform: translateX(16px) scale(0.98);
+  }
+}
+
+.toast-in {
+  animation: toast-in var(--dur-medium) var(--ease-decelerate);
+}
+
+.toast-out {
+  animation: toast-out var(--dur-short) var(--ease-standard) forwards;
+}
+
+/* Dialog: M3 container transform, enter and exit both animated. */
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes scrim-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.dialog-in {
+  animation: dialog-in var(--dur-medium) var(--ease-decelerate);
+}
+
+.scrim-in {
+  animation: scrim-in var(--dur-medium) var(--ease-standard);
+}
+
+/* Rows and cards appear in sequence; index drives the delay. */
+@keyframes list-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.list-in {
+  animation: list-in var(--dur-medium) var(--ease-decelerate) both;
+  animation-delay: min(calc(var(--list-index, 0) * 18ms), 220ms);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .page-enter {
+  .page-enter,
+  .dialog-in,
+  .scrim-in,
+  .list-in,
+  .toast-in,
+  .toast-out {
+    animation: none;
+  }
+
+  .theme-spread {
     animation: none;
   }
 }

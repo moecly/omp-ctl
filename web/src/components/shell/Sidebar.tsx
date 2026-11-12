@@ -93,14 +93,19 @@ export function Sidebar({
         onClick={() => onNavigate(item.page)}
         onMouseEnter={() => prefetchRoute(item.page)}
         className={cn(
-          "flex h-[30px] items-center gap-2.5 rounded-[var(--radius-md)] px-2 text-[13px]",
+          "flex h-10 items-center gap-3 rounded-full px-3.5 text-[13px] font-medium",
+          "transition-[background-color,color,padding] duration-[var(--dur-medium)] ease-[var(--ease-emphasized)]",
           collapsed && "justify-center px-0",
           isActive
-            ? "bg-[var(--color-active)] text-[var(--color-fg)]"
-            : "text-[var(--color-fg-muted)] hover:bg-[var(--color-hover)] hover:text-[var(--color-fg)]",
+            ? "bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]"
+            : "text-[var(--color-fg-muted)] hover:bg-[color-mix(in_srgb,var(--color-fg)_8%,transparent)] hover:text-[var(--color-fg)]",
         )}
       >
-        <Icon size={15} strokeWidth={1.75} className={cn("shrink-0", isActive && "text-[var(--color-accent)]")} />
+        <Icon
+          size={18}
+          strokeWidth={2.1}
+          className={cn("shrink-0", isActive && "text-[var(--m3-on-secondary-container)]")}
+        />
         {!collapsed && <span className="truncate">{t.nav[item.key]}</span>}
       </button>
     );
@@ -109,23 +114,26 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        "flex shrink-0 flex-col border-r border-[var(--color-border)] bg-[var(--color-bg)]",
-        collapsed ? "w-[56px]" : "w-[232px]",
+        "flex shrink-0 flex-col overflow-hidden bg-[var(--color-bg)]",
+        "transition-[width] duration-[var(--dur-medium)] ease-[var(--ease-emphasized)]",
+        collapsed ? "w-[76px]" : "w-[248px]",
       )}
     >
-      <div className="flex h-[52px] shrink-0 items-center gap-2 px-3">
-        <Hexagon size={18} className="shrink-0 text-[var(--color-accent)]" />
-        {!collapsed && <span className="truncate text-[13px] font-medium text-[var(--color-fg)]">{t.appName}</span>}
+      <div className="flex h-[56px] shrink-0 items-center gap-2.5 px-4">
+        <Hexagon size={22} strokeWidth={2.4} className="shrink-0 text-[var(--color-accent)]" />
+        {!collapsed && (
+          <span className="truncate text-[14px] font-medium tracking-[-0.01em] text-[var(--color-fg)]">{t.appName}</span>
+        )}
         <IconButton label={t.shell.toggleSidebar} onClick={onToggle} className="ml-auto">
           {collapsed ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={15} />}
         </IconButton>
       </div>
 
-      <nav className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-2 pb-3">
+      <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 pb-4">
         {groups.map((group) => (
           <div key={group.title} className="flex flex-col gap-0.5">
             {!collapsed && (
-              <div className="px-2 py-1 text-[11px] uppercase tracking-wide text-[var(--color-fg-subtle)]">
+              <div className="px-3.5 pb-1 pt-3 text-[11px] font-medium uppercase tracking-[0.08em] text-[var(--color-fg-subtle)]">
                 {group.title}
               </div>
             )}

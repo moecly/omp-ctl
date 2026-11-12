@@ -5,6 +5,7 @@ mod backup;
 mod config_edit;
 mod defaults;
 pub mod error;
+mod fonts;
 mod keybindings;
 mod mcp;
 mod models;
@@ -779,6 +780,82 @@ async fn restore_keybindings_backup() -> Result<KeybindingsState> {
     .await
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LocaleInfo {
+    /// Best match for the system language among the locales the UI ships.
+    pub system: String,
+    /// Raw locale tags the OS reported, for display and debugging.
+    pub detected: Vec<String>,
+}
+
+/// Report the system language so the UI can default to it.
+///
+/// `LC_ALL`/`LC_MESSAGES`/`LANG` are the POSIX answer and also work on macOS;
+/// Windows leaves them unset, so fall back to the Win32 locale names. Only the
+/// language subtag matters here: every Chinese variant maps to `zh`.
+#[tauri::command]
+async fn system_locale() -> Result<LocaleInfo> {
+    offload(move || {
+        let mut detected: Vec<String> = Vec::new();
+        for key in ["LC_ALL", "LC_MESSAGES", "LANG", "LANGUAGE"] {
+            if let Ok(v) = std::env::var(key) {
+                for part in v.split([':', ';']) {
+                    let tag = part.trim();
+                    if !tag.is_empty() && !detected.iter().any(|d| d == tag) {
+                        detected.push(tag.to_string());
+                    }
+                }
+            }
+        }
+        #[cfg(windows)]
+        {
+            for key in ["USERLANG", "LANG"] {
+                if let Ok(v) = std::env::var(key) {
+                    if !v.is_empty() && !detected.iter().any(|d| d == &v) {
+                        detected.push(v);
+                    }
+                }
+            }
+        }
+        let system = detected
+            .iter()
+            .map(|tag| tag.to_ascii_lowercase())
+            .find_map(|tag| {
+                if tag.starts_with("zh") {
+                    Some("zh".to_string())
+                } else if tag.starts_with("en") {
+                    Some("en".to_string())
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_else(|| "en".to_string());
+        Ok(LocaleInfo { system, detected })
+    })
+    .await
+}
+
+#[tauri::command]
+async fn list_imported_fonts() -> Result<Vec<fonts::ImportedFont>> {
+    offload(move || fonts::list()).await
+}
+
+#[tauri::command]
+async fn import_font(path: PathBuf) -> Result<fonts::ImportedFont> {
+    offload(move || fonts::import(&path)).await
+}
+
+#[tauri::command]
+async fn read_imported_font(family: String) -> Result<Vec<u8>> {
+    offload(move || fonts::read(&family)).await
+}
+
+#[tauri::command]
+async fn remove_imported_font(family: String) -> Result<bool> {
+    offload(move || fonts::remove(&family)).await
+}
+
 pub fn run() {
     tauri::Builder::default()
         .setup(|_| {
@@ -855,6 +932,11 @@ pub fn run() {
             save_workspace,
             delete_workspace,
             apply_workspace,
+            system_locale,
+            list_imported_fonts,
+            import_font,
+            read_imported_font,
+            remove_imported_font,
         ])
         .run(tauri::generate_context!())
         .expect("error while running omp-ctl");

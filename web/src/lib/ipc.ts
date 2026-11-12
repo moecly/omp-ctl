@@ -24,6 +24,8 @@ import type {
   SaveResult,
   SettingEntry,
   SettingsCatalog,
+  ImportedFont,
+  LocaleInfo,
 } from "./types";
 
 const TTL = 30_000;
@@ -328,7 +330,32 @@ export const ipc = {
     invalidate("overview");
     return r;
   },
+
+  systemLocale: () => invoke<LocaleInfo>("system_locale"),
+  listImportedFonts: () => get("imported-fonts", () => invoke<ImportedFont[]>("list_imported_fonts")),
+  importFont: async (path: string) => {
+    const font = await invoke<ImportedFont>("import_font", { path });
+    invalidate("imported-fonts");
+    return font;
+  },
+  removeImportedFont: async (family: string) => {
+    const removed = await invoke<boolean>("remove_imported_font", { family });
+    invalidate("imported-fonts");
+    return removed;
+  },
+  /**
+   * Blob URL for an imported font.
+   *
+   * Fonts are read through IPC instead of the asset protocol so the app never
+   * has to expose the store directory to the webview's file scope.
+   */
+  fontUrl: async (family: string) => {
+    const bytes = await invoke<number[]>("read_imported_font", { family });
+    const blob = new Blob([new Uint8Array(bytes)], { type: "font/woff2" });
+    return URL.createObjectURL(blob);
+  },
 };
+
 
 export function prefetchRoute(page: string, param?: string) {
   switch (page) {

@@ -19,6 +19,8 @@ export interface Strings {
     agents: string;
     mcp: string;
     hooks: string;
+    hooksPre: string;
+    hooksPost: string;
     tools: string;
     memory: string;
     keybindings: string;
@@ -85,6 +87,9 @@ export interface Strings {
     themeLight: string;
     themeAuto: string;
     language: string;
+    palette: string;
+    font: string;
+    fontSize: string;
     searchPlaceholder: string;
     noResults: string;
     shortcuts: string;
@@ -291,6 +296,24 @@ export interface Strings {
   };
   settings: {
     title: string;
+    appearance: string;
+    appearanceColor: string;
+    appearanceFont: string;
+    appearanceLanguage: string;
+    fontBundled: string;
+    fontBundledHint: string;
+    fontSystem: string;
+    fontSystemHint: string;
+    fontImport: string;
+    fontImportHint: string;
+    fontImportPrompt: string;
+    fontImported: string;
+    fontImportFailed: string;
+    fontRemoveTitle: string;
+    fontRemoveConfirm: string;
+    systemLanguage: string;
+    systemLanguageDetecting: string;
+    searchHint: string;
     ompCtl: string;
     configured: string;
     unset: string;
@@ -338,6 +361,8 @@ const zh: Strings = {
     agents: "子代理",
     mcp: "MCP 服务",
     hooks: "钩子",
+    hooksPre: "前置钩子",
+    hooksPost: "后置钩子",
     tools: "工具",
     memory: "记忆",
     keybindings: "快捷键",
@@ -403,6 +428,9 @@ const zh: Strings = {
     themeDark: "深色",
     themeLight: "浅色",
     themeAuto: "跟随系统",
+    palette: "配色方案",
+    font: "字体",
+    fontSize: "字号",
     language: "语言",
     searchPlaceholder: "搜索页面与操作…",
     noResults: "无匹配结果",
@@ -624,6 +652,24 @@ const zh: Strings = {
   },
   settings: {
     title: "设置",
+    appearance: "外观",
+    appearanceColor: "配色方案",
+    appearanceFont: "字体",
+    appearanceLanguage: "语言",
+    fontBundled: "寒蝉半圆体 Semibold（内置）",
+    fontBundledHint: "随应用内置的中文圆体，覆盖界面所有文字",
+    fontSystem: "跟随系统",
+    fontSystemHint: "使用操作系统的默认界面字体",
+    fontImport: "导入字体",
+    fontImportHint: "支持 woff2 / woff / ttf / otf",
+    fontImportPrompt: "输入字体文件的完整路径",
+    fontImported: "字体已导入",
+    fontImportFailed: "导入失败",
+    fontRemoveTitle: "删除字体",
+    fontRemoveConfirm: "确定删除字体「{name}」吗？文件会从 store 中移除。",
+    systemLanguage: "系统语言",
+    systemLanguageDetecting: "正在检测系统语言…",
+    searchHint: "可以按中文名称、键名或英文说明搜索",
     ompCtl: "omp-ctl",
     configured: "已显式配置",
     unset: "使用默认值",
@@ -671,6 +717,8 @@ const en: Strings = {
     agents: "Agents",
     mcp: "MCP Servers",
     hooks: "Hooks",
+    hooksPre: "Pre-tool hooks",
+    hooksPost: "Post-tool hooks",
     tools: "Tools",
     memory: "Memory",
     keybindings: "Keybindings",
@@ -736,6 +784,9 @@ const en: Strings = {
     themeDark: "Dark",
     themeLight: "Light",
     themeAuto: "System",
+    palette: "Palette",
+    font: "Font",
+    fontSize: "Text size",
     language: "Language",
     searchPlaceholder: "Search pages and actions…",
     noResults: "No results",
@@ -957,6 +1008,24 @@ const en: Strings = {
   },
   settings: {
     title: "Settings",
+    appearance: "Appearance",
+    appearanceColor: "Colour scheme",
+    appearanceFont: "Font",
+    appearanceLanguage: "Language",
+    fontBundled: "ChillRoundM Semibold (bundled)",
+    fontBundledHint: "The rounded Chinese face shipped with the app, used for all UI text",
+    fontSystem: "System default",
+    fontSystemHint: "Use the operating system's default UI font",
+    fontImport: "Import font",
+    fontImportHint: "woff2, woff, ttf and otf are supported",
+    fontImportPrompt: "Absolute path of the font file",
+    fontImported: "Font imported",
+    fontImportFailed: "Import failed",
+    fontRemoveTitle: "Remove font",
+    fontRemoveConfirm: "Remove the font “{name}”? The file is deleted from the store.",
+    systemLanguage: "System language",
+    systemLanguageDetecting: "Detecting the system language…",
+    searchHint: "Search by label, key, or description",
     ompCtl: "omp-ctl",
     configured: "Explicitly set",
     unset: "Default",

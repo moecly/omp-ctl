@@ -1,10 +1,22 @@
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
 import { AppContext, type Theme, type ThemePref } from "../../hooks/useApp";
 import { loadLocale, loadSidebar, loadThemePref, saveLocale, saveSidebar, saveTheme } from "../../lib/prefs";
+import {
+  applyPalette,
+  BUNDLED_FONT,
+  fontStack,
+  loadFont,
+  loadPalette,
+  paletteById,
+  registerImportedFont,
+  saveFont,
+  savePalette,
+} from "../../lib/appearance";
 import { LOCALES, type Locale, assertLocaleParity, strings, type Strings } from "../../lib/i18n";
 import { type Route, getRoute, navigate, subscribe } from "../../lib/router";
 import { install, register } from "../../lib/hotkeys";
+import { ipc } from "../../lib/ipc";
 import { ToastHost } from "../ui/ToastHost";
 import { Header } from "./Header";
 import { Sidebar, NAV } from "./Sidebar";
@@ -34,11 +46,18 @@ export function pageTitle(page: string, t: Strings): string {
   return key ? t.nav[key] : t.appName;
 }
 
+/** BCP-47-ish tag for the OS locale, used for tooltips on the language control. */
+function matchesLocale(tag: string, locale: Locale): boolean {
+  return tag.toLowerCase().startsWith(locale);
+}
+
 export function AppShell({ children }: { children: (route: Route) => ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(() => {
     const stored = loadLocale();
     return stored === "en" || stored === "zh" ? stored : "zh";
   });
+  const [systemLocale, setSystemLocale] = useState<Locale | null>(null);
+  const [localePinned, setLocalePinned] = useState(() => loadLocale() !== null);
   const [themePref, setThemePref] = useState<ThemePref>(() => loadThemePref());
   const [systemLight, setSystemLight] = useState(
     () => window.matchMedia("(prefers-color-scheme: light)").matches,
@@ -46,6 +65,8 @@ export function AppShell({ children }: { children: (route: Route) => ReactNode }
   const [route, setRoute] = useState(getRoute());
   const [collapsed, setCollapsed] = useState(() => loadSidebar());
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [palette, setPaletteState] = useState(() => loadPalette());
+  const [font, setFontState] = useState(() => loadFont());
 
   const t = useMemo(() => strings(locale), [locale]);
 
@@ -60,10 +81,93 @@ export function AppShell({ children }: { children: (route: Route) => ReactNode }
     return () => mq.removeEventListener("change", onChange);
   }, []);
 
+  // Palette + tone on every change: `applyPalette` writes `--m3-*` inline, which
+  // overrides the static blocks selected by the data attributes.
   useEffect(() => {
-    document.documentElement.dataset.theme = theme;
+    applyPalette(paletteById(palette), theme === "dark");
     saveTheme(themePref);
-  }, [theme, themePref]);
+  }, [palette, theme, themePref]);
+
+  useEffect(() => {
+    document.documentElement.style.setProperty("--font-sans", fontStack(font));
+    saveFont(font);
+  }, [font]);
+
+  useEffect(() => {
+    if (font === BUNDLED_FONT || font === "system") return;
+    let alive = true;
+    ipc
+      .fontUrl(font)
+      .then((url) => {
+        if (alive) registerImportedFont(font, url);
+      })
+      .catch(() => {
+        // A missing font file falls back to the system stack, which is a
+        // cosmetic degradation, not something worth interrupting the user for.
+      });
+    return () => {
+      alive = false;
+    };
+  }, [font]);
+
+  // Follow the OS language until the user picks one explicitly.
+  useEffect(() => {
+    let alive = true;
+    ipc
+      .systemLocale()
+      .then((info) => {
+        if (!alive) return;
+        const detected = (LOCALES as readonly string[]).find((l) => matchesLocale(info.system, l as Locale));
+        const resolved = (detected as Locale | undefined) ?? "en";
+        setSystemLocale(resolved);
+        if (!localePinned) setLocaleState(resolved);
+      })
+      .catch(() => setSystemLocale(null));
+    return () => {
+      alive = false;
+    };
+  }, [localePinned]);
+
+  /**
+   * Switch palette with a circular spread from the pressed control.
+   *
+   * A disc of the incoming primary colour is inserted at the click point and
+   * clipped to a growing circle while the palette variables change underneath,
+   * so the new colour appears to travel outward. Only the disc animates: the
+   * palette swap itself is immediate, which is what keeps every label readable
+   * during the transition instead of cross-fading two colour systems.
+   */
+  const setPalette = useCallback(
+    (id: string, origin?: { x: number; y: number }) => {
+      if (id === palette) return;
+      const root = document.documentElement;
+      const x = origin?.x ?? window.innerWidth - 64;
+      const y = origin?.y ?? 40;
+      const radius = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y));
+      root.style.setProperty("--spread-x", `${x}px`);
+      root.style.setProperty("--spread-y", `${y}px`);
+      root.style.setProperty("--spread-r", `${radius}px`);
+
+      applyPalette(paletteById(id), theme === "dark");
+      setPaletteState(id);
+      savePalette(id);
+
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      const disc = document.createElement("div");
+      disc.className = "theme-spread";
+      disc.addEventListener("animationend", () => disc.remove());
+      document.body.appendChild(disc);
+    },
+    [palette, theme],
+  );
+
+  const setLocale = useCallback((l: Locale) => {
+    setLocaleState(l);
+    setLocalePinned(true);
+    saveLocale(l);
+  }, []);
+
+  const setFont = useCallback((family: string) => setFontState(family), []);
 
   useEffect(() => {
     if (import.meta.env.DEV) assertLocaleParity();
@@ -98,18 +202,20 @@ export function AppShell({ children }: { children: (route: Route) => ReactNode }
   const value = useMemo(
     () => ({
       locale,
-      setLocale: (l: Locale) => {
-        setLocaleState(l);
-        saveLocale(l);
-      },
+      setLocale,
+      systemLocale,
       t,
       theme,
       themePref,
       setThemePref,
+      palette,
+      setPalette,
+      font,
+      setFont,
       paletteOpen,
       setPaletteOpen,
     }),
-    [locale, t, theme, themePref, paletteOpen],
+    [locale, setLocale, systemLocale, t, theme, themePref, palette, setPalette, font, setFont, paletteOpen],
   );
 
   return (
