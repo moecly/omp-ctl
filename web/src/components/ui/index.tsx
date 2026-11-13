@@ -374,12 +374,16 @@ export function Switch({
       onClick={() => onChange(!checked)}
       className={cn(
         "relative isolate inline-flex h-7 w-12 shrink-0 items-center overflow-hidden rounded-full",
-        "transition-[background-color] duration-[var(--dur-medium)] ease-[var(--ease-emphasized)]",
-        // M3 2024: unselected track is a filled surface role with an outline,
-        // not a heavy 2px border; selected fills and drops the outline.
+        "transition-[background-color,border-color] duration-[var(--dur-medium)] ease-[var(--ease-emphasized)]",
+        /*
+         * Off state keeps a drawn boundary. The unselected track used
+         * `surface-container`, which sits at ~1.1:1 against the page on every
+         * palette, so the control read as a pale blob whose state could not be
+         * told apart from the background.
+         */
         checked
-          ? "bg-[var(--color-accent)]"
-          : "bg-[var(--color-surface-2)] outline outline-1 -outline-offset-1 outline-[var(--color-border-strong)]",
+          ? "border border-transparent bg-[var(--color-accent)]"
+          : "border border-[var(--color-border-strong)] bg-[color-mix(in_srgb,var(--color-fg)_7%,transparent)]",
         disabled && "cursor-not-allowed opacity-38",
       )}
     >
@@ -387,9 +391,15 @@ export function Switch({
         className={cn(
           "pointer-events-none block rounded-full",
           "transition-[transform,width,height,background-color] duration-[var(--dur-medium)] ease-[var(--ease-emphasized)]",
+          /*
+           * Both handles hug their end of the track. The off handle used to sit
+           * at x=15 in a 48px track — dead centre — which is exactly the
+           * ambiguous "is it on?" rendering; M3 and every other platform pin it
+           * to the leading edge instead.
+           */
           checked
-            ? "h-5 w-5 translate-x-[25px] bg-[var(--color-accent-fg)]"
-            : "h-4 w-4 translate-x-[15px] bg-[var(--color-fg-subtle)]",
+            ? "h-5 w-5 translate-x-[23px] bg-[var(--color-accent-fg)]"
+            : "h-4 w-4 translate-x-[6px] bg-[var(--color-border-strong)]",
         )}
       />
     </button>
