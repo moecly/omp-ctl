@@ -14,7 +14,7 @@ web/                    React + TypeScript + Vite + Tailwind v4 前端（bun 管
                         常量与 selector 拼接）、chord（KeyboardEvent → 组合键字符串）、router、i18n、prefs、toast、
                         hotkeys、format、cn（clsx+tailwind-merge）、scanRows（探测对话框行合并：上游在线 + 已配置但上游已移除）
     hooks/              useAsync（加载/错误/reload）、useApp（全局上下文）
-    components/ui/      UI 原语（Button/Input/Dialog/CodeEditor/Tabs/...），纯 Tailwind
+    components/ui/      UI 原语（Button/Input/Select/Dialog/CodeEditor/Tabs/...），纯 Tailwind；`Select` 是 M3 菜单，非原生 `<select>`
     components/shell/   AppShell、Sidebar、Header、CommandPalette、PageContainer
     components/settings/ 设置页「omp-ctl」Tab 内容：DefaultsPanel（默认值）
     components/roles/   模型角色页组件：PresetBar（预设选择/应用/新建/重命名/删除）
@@ -56,7 +56,16 @@ packaging/aur/           AUR 包：每个包一个子目录（omp-ctl 源码构�
 * [`Result`] 别名必须带默认错误参数：`pub type Result<T, E = AppError>`（rule `rs-result-type`）。
 * 前端只用 `web/src/components/ui` 内原语，不引入新 UI 依赖；代码编辑用 `textarea` + 行号栏（`CodeEditor`），不用 CodeMirror。
 * 样式统一用 Tailwind v4 工具类；类名拼接一律走 `cn()`（`web/src/lib/cn.ts`），不手写模板字符串。
-* 一切视觉走 Material Design 3：`app.css` 只声明 token 与动效，配色来自 `palettes.css` 的 `--m3-*`（10 套 tonal-spot 方案），组件一律用 `var(--color-*)`／`var(--radius-*)`，不写 `dark:` 变体。主题 `dark`/`light`/`auto` 与配色、字体都存 localStorage，默认浅色 + 寒蝉半圆体；`auto` 跟随 `prefers-color-scheme`，语言默认跟随系统（`system_locale`）。切换配色时把 `--m3-*` 直接写到 `documentElement` 并插入一个从点击处扩散的圆盘（`.theme-spread`），不做渐变交叉淡入；`index.html` 的内联脚本先定一次配色与色调，避免首帧闪烁。图标统一由 `svg.lucide` 的 `stroke-width`/圆角衔接覆盖，不在调用处逐个调线宽。
+* 一切视觉走 Material Design 3：`app.css` 只声明 token 与动效，配色来自 `palettes.css` 的 `--m3-*`（10 套 tonal-spot 方案），组件一律用 `var(--color-*)`／`var(--radius-*)`，不写 `dark:` 变体。主题 `dark`/`light`/`auto` 与配色、字体都存 localStorage，默认浅色 + 寒蝉半圆体；`auto` 跟随 `prefers-color-scheme`，语言默认跟随系统（`system_locale`）。配色与明暗切换都由 `reveal()`（`AppShell.tsx`）给出圆形的扩散过渡：先提交新配色，再从点击点扩散一层中性色圆盘并淡出。**不要**试图用 DOM 克隆做 MaskAnim 式擦除：`#root` 是 flex 子项，脱离文档后会塌成 0 高，克隆层是一张空白全屏遮罩，且移除回调不触发，会把窗口永久涂黑（已实测踩过）。View Transitions 同样不可用：此 WebKitGTK 声明 `startViewTransition` 却永不 resolve。`index.html` 的内联脚本先定一次配色与色调，避免首帧闪烁。
+* 明暗只有两态：`ThemePref = "dark" | "light"`，首次启动跟随系统（`hasThemeChoice()` 为假时由 `prefers-color-scheme` 决定），首次手动切换才落盘。配色只在 `AppShell` 的单个 `useEffect` 里 `applyPalette`，不要在 `setPalette`/`changeTheme` 里重复调用——两处写盘会让后一次 effect 用上一轮的派生 tone 覆盖刚切好的明暗。
+* 图标统一由 `svg.lucide` 的 `stroke-width`/圆角衔接覆盖，不在调用处逐个调线宽。
+* 输入类控件用**描边式**（`CONTROL_BASE`）：`--color-surface-2` 与页面底色只差 1.11:1，填充式在本项目的 tonal-spot 配色下不可见；边界必须靠 `--color-border-strong` 的实线画出（实测 5.83:1）。不要改回填充式或只靠色阶区分。
+* 全局 `button/a/input/...` 的 transition 只允许合成属性（background-color/color/transform/opacity）。此前包含 `box-shadow` 与 `border-color`，两者逐帧触发重绘；展开的服务商表单里有 80+ 控件，滚动时是成百个重绘目标。
+* 高度动画（`.collapsible` 的 `grid-template-rows: 0fr→1fr`）必须 `animation-fill-mode: backwards`，且基类不能写成 `1fr`——否则首帧已是终态，高度不会动，只剩透明度在变。
+* 列表行若要有完整圆角，行内不能铺满容器宽度：`overflow-x-auto` + 满宽 background 会把左右圆角切掉。行用 `px-3` 的内缩胶囊，容器给 `-mx-1 px-1` 留出裁切余量。
+* 可点击面必须带 M3 state layer：用 `useRipple()`（`web/src/lib/ripple.ts`）返回的 `ripple` + `rippleTarget`，宿主自己 `relative isolate overflow-hidden`，波纹才能被自身圆角裁住。只给大容器加、不给行内小控件加会看起来像没实现。
+* 默认配色是青绿（`DEFAULT_PALETTE = "teal"`）；改默认值要同时改 `scripts/gen-palettes.mjs`、`palettes.ts`、`index.html` 内联脚本三处。
+* 主题揭示的克隆层必须冻结：`.theme-mask *` 关闭所有 animation/transition，否则入场动画会在冻结帧里重放，观感等同页面刷新。
 * 每个页面最外层必须用 `PageContainer`（`{title, description?, actions?, children}`）；列表用全宽 `divide-y` 或 `<table>`，不叠 Card。
 * `web/src/lib/ipc.ts` 的参数名必须与 Rust `#[tauri::command]` 参数名逐字一致（如 `oldId`/`newId`）。
 * 所有写盘走 `store::write_atomic`，写前经 `backup_file` 生成 `.bak.<ts>`。

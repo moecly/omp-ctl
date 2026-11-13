@@ -28,11 +28,16 @@ export function dismiss(id: number) {
   emit();
 }
 
+/**
+ * Add a toast. `ms` is the time it stays before the host begins dismissing it;
+ * the store keeps ownership of removal so a manual close and a timeout take the
+ * same path.
+ */
 export function push(kind: ToastKind, title: string, detail?: string, ms = 4500) {
   const id = nextId++;
   toasts = [...toasts, { id, kind, title, detail }];
   emit();
-  if (ms > 0) setTimeout(() => dismiss(id), ms);
+  if (ms > 0) window.setTimeout(() => dismiss(id), ms);
   return id;
 }
 

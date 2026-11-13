@@ -32,7 +32,6 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     const actions = [
       { id: "theme:dark", label: `${t.shell.theme}: ${t.shell.themeDark}`, group: t.shell.shortcuts, run: () => setThemePref("dark") },
       { id: "theme:light", label: `${t.shell.theme}: ${t.shell.themeLight}`, group: t.shell.shortcuts, run: () => setThemePref("light") },
-      { id: "theme:auto", label: `${t.shell.theme}: ${t.shell.themeAuto}`, group: t.shell.shortcuts, run: () => setThemePref("auto") },
       {
         id: "action:lang",
         label: `${t.shell.language}: ${locale === "zh" ? "English" : "中文"}`,

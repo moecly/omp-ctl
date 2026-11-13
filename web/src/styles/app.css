@@ -67,13 +67,18 @@
     0 2px 6px color-mix(in srgb, var(--m3-shadow, #000) 20%, transparent),
     0 12px 24px -6px color-mix(in srgb, var(--m3-shadow, #000) 18%, transparent);
 
-  /* M3 motion: emphasised easing, three durations. */
+  /*
+   * M3 motion. The emphasised curves span the full range (0.2/0/0/1 is the
+   * legacy "standard" curve and reads as a snap); three durations map to
+   * short/medium/long as M3 defines them.
+   */
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasized-decel: cubic-bezier(0.05, 0.7, 0.1, 1);
   --ease-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
-  --dur-short: 150ms;
-  --dur-medium: 250ms;
-  --dur-long: 400ms;
+  --dur-short: 180ms;
+  --dur-medium: 320ms;
+  --dur-long: 520ms;
 }
 
 @layer base {
@@ -147,6 +152,17 @@
     stroke-linejoin: round;
   }
 
+  /*
+   * Composite-only transitions, applied globally.
+   *
+   * This used to animate six properties per control, including `box-shadow` and
+   * `border-color`, both of which force a repaint of the element (and its
+   * shadow) every frame. With ~83 controls inside an expanded provider form
+   * that is hundreds of live repaint targets during a scroll. Colour changes
+   * still read as instant-but-soft because `color`/`background-color` are
+   * cheap; the expensive pair is dropped and shadows now appear with the
+   * background rather than easing separately.
+   */
   button,
   a,
   input,
@@ -155,19 +171,25 @@
   [role="button"] {
     transition:
       background-color var(--dur-short) var(--ease-standard),
-      border-color var(--dur-short) var(--ease-standard),
       color var(--dur-short) var(--ease-standard),
-      box-shadow var(--dur-short) var(--ease-standard),
       transform var(--dur-short) var(--ease-standard),
       opacity var(--dur-short) var(--ease-standard);
   }
 }
 
-/* Page swap: M3 shared-axis style fade + small rise. */
+/*
+ * Page swap: fade + a short rise.
+ *
+ * The rise is deliberately small and the animation is `backwards`-filled only:
+ * with `both`/`forwards` the resting transform stayed applied, which made the
+ * scroll container look like it shifted once the animation finished — the
+ * "refresh" flicker. `translateY` also runs on the compositor, so the text does
+ * not resample mid-animation.
+ */
 @keyframes page-enter {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translate3d(0, 8px, 0);
   }
   to {
     opacity: 1;
@@ -176,40 +198,141 @@
 }
 
 .page-enter {
-  animation: page-enter var(--dur-medium) var(--ease-decelerate);
+  animation: page-enter var(--dur-medium) var(--ease-emphasized-decel) backwards;
 }
 
 /*
- * Theme spread, Telegram style: a disc of the incoming palette grows from the
- * control that was pressed and fades as it passes, so the colour change reads
- * as travelling across the app instead of cross-fading.
+ * Theme reveal, after MaskAnim: a frozen copy of the outgoing UI sits on top of
+ * the document and is erased by a growing circle, uncovering the palette that
+ * was already swapped underneath.
  *
- * The palette itself is swapped on the same frame (a cross-fade is exactly what
- * this replaces), so the disc is a wash over already-correct colours rather
- * than a screenshot of the old UI — that keeps text legible throughout.
+ * Two details keep it from looking like a page refresh:
+ *  - the mask fades out over its second half, so the clipping edge is never the
+ *    only thing moving;
+ *  - the fade is shorter than the erase, which hides sub-pixel seams where the
+ *    clone and the live tree disagree.
+ *
+ * The clone is fixed to the viewport, clipped at the click point, and inert.
  */
-@keyframes theme-spread {
+/*
+ * Theme reveal: a disc of the outgoing primary colour grows from the press
+ * point and fades, uncovering the palette that was already swapped underneath.
+ *
+ * This is the compositor-only part of the MaskAnim idea. A real reveal needs a
+ * screenshot of the old frame; cloning the DOM to fake one produced an empty
+ * layer that could not be removed, so it is deliberately not attempted here.
+ */
+@keyframes theme-disc {
   from {
-    clip-path: circle(0 at var(--spread-x, 50%) var(--spread-y, 50%));
-    opacity: 0.5;
+    clip-path: circle(0px at var(--disc-x, 50%) var(--disc-y, 50%));
+    opacity: 0.55;
   }
-  60% {
-    opacity: 0.32;
+  70% {
+    opacity: 0.22;
   }
   to {
-    clip-path: circle(var(--spread-r, 150vmax) at var(--spread-x, 50%) var(--spread-y, 50%));
+    clip-path: circle(var(--disc-r, 150vmax) at var(--disc-x, 50%) var(--disc-y, 50%));
     opacity: 0;
   }
 }
 
-.theme-spread {
+.theme-disc {
   position: fixed;
   inset: 0;
-  z-index: 90;
+  z-index: 120;
   pointer-events: none;
-  contain: strict;
-  background: var(--m3-primary);
-  animation: theme-spread var(--dur-long) var(--ease-decelerate) forwards;
+  /*
+   * A neutral tint, not the primary role: on a dark palette `--m3-primary` is a
+   * light pastel, so a full-screen wash of it reads as a colour cast over the
+   * whole window rather than a transition between two schemes.
+   */
+  background: color-mix(in srgb, var(--color-fg) 12%, var(--color-bg));
+  animation: theme-disc 720ms cubic-bezier(0.2, 0, 0, 1) forwards;
+  will-change: clip-path, opacity;
+}
+
+/*
+ * M3 state layer: a ripple that expands from the press point and fades, clipped
+ * by the host's own radius. Appended imperatively by `useRipple`.
+ */
+@keyframes state-ripple {
+  from {
+    transform: scale(0);
+    opacity: 0.28;
+  }
+  65% {
+    opacity: 0.16;
+  }
+  to {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+.state-ripple {
+  position: absolute;
+  left: var(--ripple-x, 50%);
+  top: var(--ripple-y, 50%);
+  width: calc(var(--ripple-r, 100px) * 2);
+  height: calc(var(--ripple-r, 100px) * 2);
+  margin-left: calc(var(--ripple-r, 100px) * -1);
+  margin-top: calc(var(--ripple-r, 100px) * -1);
+  border-radius: 9999px;
+  background: currentColor;
+  pointer-events: none;
+  animation: state-ripple var(--dur-medium) var(--ease-standard) forwards;
+}
+
+/*
+ * Expanded detail under a list row.
+ *
+ * `grid-template-rows: 0fr -> 1fr` is the only way to animate to an unknown
+ * height without measuring, but the keyframes were the *only* place `0fr`
+ * appeared: the base rule said `1fr`, so the element was already at full height
+ * on the first frame and the height never animated — only the opacity did, which
+ * is why the card appeared to pop in. The base now starts at 0fr and the
+ * animation fills backwards, so frame 0 really is collapsed.
+ */
+@keyframes collapse-in {
+  from {
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    grid-template-rows: 1fr;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.collapsible {
+  display: grid;
+  grid-template-rows: 1fr;
+  animation: collapse-in var(--dur-medium) var(--ease-emphasized-decel) backwards;
+}
+
+.collapsible > * {
+  min-height: 0;
+  overflow: hidden;
+}
+
+
+/* Menu surface: M3 grow-from-anchor, short enough to feel immediate. */
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.menu-in {
+  transform-origin: top left;
+  animation: menu-in var(--dur-short) var(--ease-decelerate);
 }
 
 /* Toast enter/exit, so a dismissal does not snap. */
@@ -291,11 +414,12 @@
   .scrim-in,
   .list-in,
   .toast-in,
-  .toast-out {
+  .toast-out,
+  .menu-in {
     animation: none;
   }
 
-  .theme-spread {
-    animation: none;
+  .theme-disc {
+    display: none;
   }
 }

@@ -8,6 +8,7 @@ import { errorText, type Defaults, type ModelRef, type ModelRoles as ModelRolesD
 import { joinSelector, splitSelector, THINKING_LEVELS } from "../lib/modelMeta";
 import { loadPreset, savePreset } from "../lib/prefs";
 import { toast } from "../lib/toast";
+import { cn } from "../lib/cn";
 import {
   Badge,
   Button,
@@ -192,59 +193,101 @@ export function ModelRoles() {
           }
         />
       ) : (
-        <div className="divide-y divide-[var(--color-border)]">
-          {entries.map(([role, selector]) => {
-            const [model, level] = splitSelector(selector);
-            const levels = levelsFor(selector);
-            return (
-            <div key={role} className="group flex h-[44px] items-center gap-3 px-1 py-2.5 hover:bg-[var(--color-hover)]">
-              <div className="flex min-w-0 flex-1 items-center gap-2">
-                <span className="text-[13px] font-medium text-[var(--color-fg)]">{role}</span>
-                {role === "default" && <Badge tone="accent">{t.common.default}</Badge>}
-                {inCycle.has(role) && <Badge tone="accent">cycle</Badge>}
-              </div>
-              <Select
-                className="w-[240px]"
-                value={selectors.includes(model) ? model : ""}
-                disabled={applying}
-                onChange={(e) => {
-                  const next = e.target.value;
-                  update(role, joinSelector(next, levelsFor(next).includes(level) ? level : ""));
-                }}
-              >
-                {!selectors.includes(model) && <option value="">{model}</option>}
-                {selectors.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </Select>
-              <Select
-                className="w-[140px]"
-                aria-label={t.roles.thinkingLevel}
-                title={t.roles.thinkingLevel}
-                value={level}
-                disabled={applying}
-                onChange={(e) => update(role, joinSelector(model, e.target.value))}
-              >
-                <option value="">{t.models.unset}</option>
-                {!levels.includes(level) && level && <option value={level}>{level}</option>}
-                {levels.map((l) => (
-                  <option key={l} value={l}>
-                    {l}
-                  </option>
-                ))}
-              </Select>
-              <IconButton
-                label={t.common.delete}
-                className="opacity-0 group-hover:opacity-100"
-                onClick={() => setDeleting(role)}
-              >
-                <Trash2 size={14} />
-              </IconButton>
+        <div className="-mx-1 overflow-x-auto px-1 pb-1">
+          <div className="min-w-[620px]">
+            <div className="grid grid-cols-[148px_minmax(0,1fr)_124px_36px] items-center gap-3 border-b border-[var(--color-border)] px-3 pb-2 text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--color-fg-subtle)]">
+              <span>{t.roles.name}</span>
+              <span>{t.roles.model}</span>
+              <span>{t.roles.thinkingLevel}</span>
+              <span />
             </div>
-            );
-          })}
+            <div className="flex flex-col gap-0.5">
+              {entries.map(([role, selector]) => {
+                const [model, level] = splitSelector(selector);
+                const levels = levelsFor(selector);
+                const slash = model.indexOf("/");
+                const provider = slash > 0 ? model.slice(0, slash) : "";
+                const bare = slash > 0 ? model.slice(slash + 1) : model;
+                return (
+                  <div
+                    key={role}
+                    className={cn(
+                      "group grid grid-cols-[148px_minmax(0,1fr)_124px_36px] items-center gap-3",
+                      // A padded pill, not a full-bleed band: a band's left and
+                      // right radii are clipped by the scroll container, which is
+                      // why both ends looked cut off.
+                      "rounded-[var(--radius-md)] px-3 py-2 transition-colors duration-[var(--dur-short)]",
+                      "hover:bg-[var(--color-hover)] focus-within:bg-[var(--color-hover)]",
+                    )}
+                  >
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <span
+                        className="truncate text-[13px] font-medium tracking-[-0.005em] text-[var(--color-fg)]"
+                        title={role}
+                      >
+                        {role}
+                      </span>
+                      {role === "default" && <Badge tone="accent">{t.common.default}</Badge>}
+                      {inCycle.has(role) && (
+                        <span
+                          title="cycle"
+                          className="shrink-0 rounded-full bg-[var(--color-surface-2)] px-1.5 text-[10px] font-medium leading-4 text-[var(--color-fg-subtle)]"
+                        >
+                          ↻
+                        </span>
+                      )}
+                    </div>
+                    <Select
+                      className="min-w-0"
+                      value={selectors.includes(model) ? model : ""}
+                      disabled={applying}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        update(role, joinSelector(next, levelsFor(next).includes(level) ? level : ""));
+                      }}
+                    >
+                      {!selectors.includes(model) && (
+                        <option value="">
+                          {provider ? `${provider} / ${bare}` : model}
+                        </option>
+                      )}
+                      {selectors.map((s) => {
+                        const i = s.indexOf("/");
+                        return (
+                          <option key={s} value={s}>
+                            {i > 0 ? `${s.slice(0, i)} / ${s.slice(i + 1)}` : s}
+                          </option>
+                        );
+                      })}
+                    </Select>
+                    <Select
+                      className="w-[124px] shrink-0"
+                      aria-label={t.roles.thinkingLevel}
+                      title={t.roles.thinkingLevel}
+                      value={level}
+                      disabled={applying}
+                      onChange={(e) => update(role, joinSelector(model, e.target.value))}
+                    >
+                      <option value="">{t.models.unset}</option>
+                      {!levels.includes(level) && level && <option value={level}>{level}</option>}
+                      {levels.map((l) => (
+                        <option key={l} value={l}>
+                          {l}
+                        </option>
+                      ))}
+                    </Select>
+                    <IconButton
+                      label={t.common.delete}
+                      className="h-8 w-8 shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                      onClick={() => setDeleting(role)}
+                    >
+                      <Trash2 size={14} />
+                    </IconButton>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
       {missing.length > 0 && (

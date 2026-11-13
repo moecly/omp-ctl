@@ -23,6 +23,7 @@ import {
 } from "../lib/modelMeta";
 import { toast } from "../lib/toast";
 import { cn } from "../lib/cn";
+import { useRipple } from "../lib/ripple";
 import { scanRows } from "../lib/scanRows";
 import {
   Badge,
@@ -58,6 +59,7 @@ export function Providers({ param }: { param?: string }) {
   const [originalId, setOriginalId] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const { ripple, rippleTarget } = useRipple();
 
   const openNew = () => {
     setEditing({ ...BLANK });
@@ -122,60 +124,86 @@ export function Providers({ param }: { param?: string }) {
               <div key={p.id}>
                 <div
                   className={cn(
-                    "group flex cursor-pointer flex-col gap-2 px-1 py-2.5 hover:bg-[var(--color-hover)] sm:flex-row sm:items-center sm:justify-between",
+                    "group relative isolate flex cursor-pointer flex-col gap-2 overflow-hidden rounded-[var(--radius-lg)] px-3 py-3",
+                    "transition-[background-color] duration-[var(--dur-medium)] ease-[var(--ease-emphasized)]",
+                    "hover:bg-[var(--color-hover)]",
+                    isOpen && "bg-[var(--color-active)]",
                     active === p.id && "text-[var(--color-fg)]",
                   )}
-                  onClick={() => openEdit(p.id)}
+                  onClick={(e) => {
+                    openEdit(p.id);
+                    // The detail card renders below the row; without this it
+                    // opens off-screen at the bottom of the list.
+                    const row = e.currentTarget;
+                    requestAnimationFrame(() => {
+                      const panel = row.parentElement?.querySelector(":scope > .collapsible");
+                      panel?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+                    });
+                  }}
+                  onPointerDown={ripple}
+                  ref={rippleTarget as React.Ref<HTMLDivElement>}
                 >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 text-[13px] font-medium text-[var(--color-fg)]">
-                      {p.id}
-                      {active === p.id && <Badge tone="accent">active</Badge>}
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 text-[13px] font-medium text-[var(--color-fg)]">
+                        {p.id}
+                        {active === p.id && <Badge tone="accent">active</Badge>}
+                      </div>
+                      <div className="truncate font-mono text-[12px] text-[var(--color-fg-subtle)]">
+                        {p.baseUrl || "—"}
+                      </div>
                     </div>
-                    <div className="truncate font-mono text-[12px] text-[var(--color-fg-subtle)]">
-                      {p.baseUrl || "—"}
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge tone="neutral">{p.api || "—"}</Badge>
-                    <Badge tone="neutral">
-                      {t.providers.modelCount}: {p.modelCount}
-                    </Badge>
-                    <Badge tone={p.hasApiKey || p.authNone ? "ok" : "warn"}>
-                      {p.authNone
-                        ? t.providers.authNone
-                        : p.hasApiKey
-                          ? t.providers.apiKeySet
-                          : t.providers.apiKeyMissing}
-                    </Badge>
-                    <div
-                      className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <IconButton label={t.common.edit} onClick={() => openEdit(p.id)}>
-                        <Pencil size={14} />
-                      </IconButton>
-                      <IconButton label={t.common.delete} onClick={() => setDeleting(p.id)}>
-                        <Trash2 size={14} />
-                      </IconButton>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge tone="neutral">{p.api || "—"}</Badge>
+                      <Badge tone="neutral">
+                        {t.providers.modelCount}: {p.modelCount}
+                      </Badge>
+                      <Badge tone={p.hasApiKey || p.authNone ? "ok" : "warn"}>
+                        {p.authNone
+                          ? t.providers.authNone
+                          : p.hasApiKey
+                            ? t.providers.apiKeySet
+                            : t.providers.apiKeyMissing}
+                      </Badge>
+                      <div
+                        className="flex items-center gap-0.5 opacity-0 transition-opacity duration-[var(--dur-short)] group-hover:opacity-100 group-focus-within:opacity-100"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <IconButton label={t.common.edit} onClick={() => openEdit(p.id)}>
+                          <Pencil size={14} />
+                        </IconButton>
+                        <IconButton label={t.common.delete} onClick={() => setDeleting(p.id)}>
+                          <Trash2 size={14} />
+                        </IconButton>
+                      </div>
                     </div>
                   </div>
                 </div>
                 {isOpen && editing && (
-                  <div className="mb-3 rounded-[var(--radius-lg)] border border-[var(--color-border)] p-4">
-                    <ProviderForm
-                      provider={editing}
-                      originalId={originalId}
-                      onClose={() => {
-                        setExpanded(null);
-                        setEditing(null);
-                      }}
-                      onSaved={() => {
-                        setExpanded(null);
-                        setEditing(null);
-                        list.reload();
-                      }}
-                    />
+                  <div className="collapsible">
+                    <div>
+                      {/*
+                       * A real card: inset from the list edge, its own border and
+                       * a raised surface. Previously it was a borderless block
+                       * flush with the container, so the form read as page
+                       * content with no margin at all.
+                       */}
+                      <div className="mb-3 ml-3 mr-3 mt-2 rounded-[var(--radius-lg)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-sm)]">
+                        <ProviderForm
+                          provider={editing}
+                          originalId={originalId}
+                          onClose={() => {
+                            setExpanded(null);
+                            setEditing(null);
+                          }}
+                          onSaved={() => {
+                            setExpanded(null);
+                            setEditing(null);
+                            list.reload();
+                          }}
+                        />
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>

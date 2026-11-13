@@ -15,7 +15,7 @@ export interface AppContextValue {
   t: Strings;
   theme: Theme;
   themePref: ThemePref;
-  setThemePref: (p: ThemePref) => void;
+  setThemePref: (p: ThemePref, origin?: { x: number; y: number }) => void;
   /** Palette id currently applied. */
   palette: string;
   /** Switch palette, animating the change from a screen point. */

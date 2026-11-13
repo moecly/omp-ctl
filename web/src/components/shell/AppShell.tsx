@@ -1,7 +1,15 @@
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
 import { AppContext, type Theme, type ThemePref } from "../../hooks/useApp";
-import { loadLocale, loadSidebar, loadThemePref, saveLocale, saveSidebar, saveTheme } from "../../lib/prefs";
+import {
+  hasThemeChoice,
+  loadLocale,
+  loadSidebar,
+  loadThemePref,
+  saveLocale,
+  saveSidebar,
+  saveTheme,
+} from "../../lib/prefs";
 import {
   applyPalette,
   BUNDLED_FONT,
@@ -51,6 +59,37 @@ function matchesLocale(tag: string, locale: Locale): boolean {
   return tag.toLowerCase().startsWith(locale);
 }
 
+/**
+ * Circular theme reveal without cloning the DOM.
+ *
+ * MaskAnim-style "freeze the old UI, erase it" needs a real screenshot, and a
+ * DOM clone is not one: `#root` is a flex child that collapses when detached,
+ * so the copy painted an empty full-screen layer — and because the removal
+ * listener never fired, that layer stayed and blacked out the window.
+ *
+ * What is left is the honest version of the same idea, using the browser's own
+ * compositor: the layer below is already repainted in the new palette, and a
+ * disc of the *old* primary colour expands from the press point and fades. It
+ * reads as the new theme growing out of the control, never covers the window,
+ * and has no stale-content failure mode.
+ */
+function reveal(x: number, y: number, radius: number, commit: () => void) {
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  commit();
+  if (reduced) return;
+
+  const disc = document.createElement("div");
+  disc.className = "theme-disc";
+  disc.style.setProperty("--disc-x", `${x}px`);
+  disc.style.setProperty("--disc-y", `${y}px`);
+  disc.style.setProperty("--disc-r", `${radius}px`);
+  disc.addEventListener("animationend", () => disc.remove());
+  // Belt and braces: an animation that never starts must not leave a layer on
+  // screen, which is exactly how the previous version could lock up the UI.
+  window.setTimeout(() => disc.remove(), 1200);
+  document.body.appendChild(disc);
+}
+
 export function AppShell({ children }: { children: (route: Route) => ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(() => {
     const stored = loadLocale();
@@ -59,6 +98,9 @@ export function AppShell({ children }: { children: (route: Route) => ReactNode }
   const [systemLocale, setSystemLocale] = useState<Locale | null>(null);
   const [localePinned, setLocalePinned] = useState(() => loadLocale() !== null);
   const [themePref, setThemePref] = useState<ThemePref>(() => loadThemePref());
+  // Until the user toggles, the OS wins. `systemLight` still drives the tone so
+  // a day/night change applies live instead of freezing the first value.
+  const [pinned, setPinned] = useState(() => hasThemeChoice());
   const [systemLight, setSystemLight] = useState(
     () => window.matchMedia("(prefers-color-scheme: light)").matches,
   );
@@ -70,7 +112,9 @@ export function AppShell({ children }: { children: (route: Route) => ReactNode }
 
   const t = useMemo(() => strings(locale), [locale]);
 
-  const theme: Theme = themePref === "auto" ? (systemLight ? "light" : "dark") : themePref;
+  // Single source of truth for the applied tone. `pinned` gates it, so a toggle
+  // takes effect on the very next render and nothing later re-derives it.
+  const theme: Theme = pinned ? (themePref === "dark" ? "dark" : "light") : systemLight ? "light" : "dark";
 
   useEffect(() => subscribe(setRoute), []);
 
@@ -81,8 +125,15 @@ export function AppShell({ children }: { children: (route: Route) => ReactNode }
     return () => mq.removeEventListener("change", onChange);
   }, []);
 
-  // Palette + tone on every change: `applyPalette` writes `--m3-*` inline, which
-  // overrides the static blocks selected by the data attributes.
+  /*
+   * The only place the palette is painted.
+   *
+   * `setPalette` and `changeTheme` deliberately do not call `applyPalette`
+   * themselves: doing it in two places made the effect run again on the next
+   * render with the *previous* derived tone, quietly reverting a light/dark
+   * switch while the icon and tooltip already said the new one. State changes
+   * here, painting follows.
+   */
   useEffect(() => {
     applyPalette(paletteById(palette), theme === "dark");
     saveTheme(themePref);
@@ -129,36 +180,52 @@ export function AppShell({ children }: { children: (route: Route) => ReactNode }
   }, [localePinned]);
 
   /**
-   * Switch palette with a circular spread from the pressed control.
+   * Switch palette with a circular reveal from the pressed control (MaskAnim).
    *
-   * A disc of the incoming primary colour is inserted at the click point and
-   * clipped to a growing circle while the palette variables change underneath,
-   * so the new colour appears to travel outward. Only the disc animates: the
-   * palette swap itself is immediate, which is what keeps every label readable
-   * during the transition instead of cross-fading two colour systems.
+   * The palette is committed immediately; the transition is a disc of neutral
+   * tint that expands from the pressed control and fades, so the change reads as
+   * growing out of the click instead of snapping. See `reveal` for why this is
+   * not a snapshot-based reveal.
    */
   const setPalette = useCallback(
     (id: string, origin?: { x: number; y: number }) => {
       if (id === palette) return;
-      const root = document.documentElement;
       const x = origin?.x ?? window.innerWidth - 64;
       const y = origin?.y ?? 40;
       const radius = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y));
-      root.style.setProperty("--spread-x", `${x}px`);
-      root.style.setProperty("--spread-y", `${y}px`);
-      root.style.setProperty("--spread-r", `${radius}px`);
 
-      applyPalette(paletteById(id), theme === "dark");
-      setPaletteState(id);
-      savePalette(id);
+      const commit = () => {
+        applyPalette(paletteById(id), theme === "dark");
+        setPaletteState(id);
+        savePalette(id);
+      };
 
-      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-      const disc = document.createElement("div");
-      disc.className = "theme-spread";
-      disc.addEventListener("animationend", () => disc.remove());
-      document.body.appendChild(disc);
+      reveal(x, y, radius, commit);
     },
     [palette, theme],
+  );
+
+  /**
+   * Light/dark switch uses the same reveal: the tone is a palette dimension
+   * (`applyPalette(..., dark)`), so swapping it changes every colour role at
+   * once and a plain boolean flip reads as a flash.
+   */
+  const changeTheme = useCallback(
+    (next: ThemePref, origin?: { x: number; y: number }) => {
+      if (pinned && next === themePref) return;
+      const x = origin?.x ?? window.innerWidth - 40;
+      const y = origin?.y ?? 28;
+      const radius = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y));
+      // Painted by the palette effect; this only changes state, so the switch
+      // happens on one render with no manual re-apply to fight it.
+      reveal(x, y, radius, () => {
+        // Both halves of the derived tone change together: the pin makes the
+        // preference authoritative, the pref is the value itself.
+        setPinned(true);
+        setThemePref(next);
+      });
+    },
+    [palette, themePref, pinned],
   );
 
   const setLocale = useCallback((l: Locale) => {
@@ -207,7 +274,7 @@ export function AppShell({ children }: { children: (route: Route) => ReactNode }
       t,
       theme,
       themePref,
-      setThemePref,
+      setThemePref: changeTheme,
       palette,
       setPalette,
       font,
@@ -215,7 +282,20 @@ export function AppShell({ children }: { children: (route: Route) => ReactNode }
       paletteOpen,
       setPaletteOpen,
     }),
-    [locale, setLocale, systemLocale, t, theme, themePref, palette, setPalette, font, setFont, paletteOpen],
+    [
+      locale,
+      setLocale,
+      systemLocale,
+      t,
+      theme,
+      themePref,
+      changeTheme,
+      palette,
+      setPalette,
+      font,
+      setFont,
+      paletteOpen,
+    ],
   );
 
   return (

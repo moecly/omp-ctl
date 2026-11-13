@@ -5,7 +5,6 @@ import { dismiss, subscribe, type Toast, type ToastKind } from "../../lib/toast"
 import { useApp } from "../../hooks/useApp";
 import { cn } from "../../lib/cn";
 
-/** M3 toast colouring: the icon and container carry the tone, not a side bar. */
 const TONE: Record<ToastKind, { container: string; icon: React.ReactNode }> = {
   info: {
     container: "bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]",
@@ -25,30 +24,29 @@ const TONE: Record<ToastKind, { container: string; icon: React.ReactNode }> = {
   },
 };
 
+const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
 /**
- * Toasts with both enter and exit animation.
+ * Snackbars.
  *
- * `dismiss` removes the item immediately from the store, so the exit animation
- * needs a local copy that survives one frame; `leaving` holds those ids.
+ * The store owns which toasts are live; this host keeps a second list of the
+ * ones it removed in order to play their exit animation. Rendering straight
+ * from the store would unmount them on the same frame the close happened, so
+ * the exit never ran — and under reduced motion there is no animation event to
+ * wait for, so the entry is dropped immediately.
  */
 export function ToastHost() {
   const { t } = useApp();
   const [items, setItems] = useState<Toast[]>([]);
-  const [leaving, setLeaving] = useState<number[]>([]);
+  const [leaving, setLeaving] = useState<Toast[]>([]);
 
   useEffect(
     () =>
       subscribe((next) => {
         setItems((prev) => {
-          const removed = prev.filter((p) => !next.some((n) => n.id === p.id)).map((p) => p.id);
-          if (removed.length > 0) {
-            setLeaving((l) => [...l, ...removed]);
-            window.setTimeout(() => {
-              setLeaving((l) => l.filter((id) => !removed.includes(id)));
-            }, 180);
-            // Keep the removed entries mounted until their animation finishes.
-            return [...prev.filter((p) => removed.includes(p.id)), ...next];
-          }
+          const gone = prev.filter((p) => !next.some((n) => n.id === p.id));
+          if (gone.length === 0) return next;
+          if (!reducedMotion()) setLeaving((l) => [...l, ...gone.filter((g) => !l.some((x) => x.id === g.id))]);
           return next;
         });
       }),
@@ -56,32 +54,38 @@ export function ToastHost() {
   );
 
   return (
-    <div className="pointer-events-none fixed bottom-5 right-5 z-50 flex flex-col items-end gap-2">
-      {items.map((toast) => {
+    <div className="pointer-events-none fixed bottom-6 right-6 z-50 flex flex-col-reverse items-end gap-2">
+      {[...leaving, ...items].map((toast) => {
         const tone = TONE[toast.kind];
-        const isLeaving = leaving.includes(toast.id);
+        const isLeaving = leaving.some((l) => l.id === toast.id);
         return (
           <div
             key={toast.id}
-            role="alert"
+            role="status"
+            onAnimationEnd={(e) => {
+              if (e.animationName !== "toast-out") return;
+              setLeaving((l) => l.filter((x) => x.id !== toast.id));
+            }}
             className={cn(
-              "pointer-events-auto flex min-w-[300px] max-w-[400px] items-start gap-3 rounded-[var(--radius-sm)] px-4 py-3 shadow-[var(--shadow-md)]",
+              "pointer-events-auto flex w-fit min-w-[288px] max-w-[420px] items-start gap-3 rounded-[var(--radius-sm)] px-4 py-3.5 shadow-[var(--shadow-md)]",
               tone.container,
               isLeaving ? "toast-out" : "toast-in",
             )}
           >
             <span className="mt-px shrink-0">{tone.icon}</span>
             <div className="min-w-0 flex-1">
-              {toast.title && <div className="text-[13px] font-medium">{toast.title}</div>}
-              {toast.detail && <div className="mt-0.5 break-words text-[12px] opacity-80">{toast.detail}</div>}
+              {toast.title && <div className="text-[13px] font-medium leading-5">{toast.title}</div>}
+              {toast.detail && (
+                <div className="mt-0.5 break-words text-[12px] leading-5 opacity-80">{toast.detail}</div>
+              )}
             </div>
             <button
               type="button"
               aria-label={t.common.close}
-              className="shrink-0 rounded-full p-1 opacity-60 transition-opacity hover:opacity-100"
+              className="-mr-1 shrink-0 rounded-full p-1.5 opacity-60 transition-opacity hover:bg-black/5 hover:opacity-100"
               onClick={() => dismiss(toast.id)}
             >
-              <X size={15} strokeWidth={2.4} />
+              <X size={15} strokeWidth={2.4} strokeLinecap="round" />
             </button>
           </div>
         );

@@ -26,6 +26,7 @@ import type { Route } from "../../lib/router";
 import type { Strings } from "../../lib/i18n";
 import { cn } from "../../lib/cn";
 import { prefetchRoute } from "../../lib/ipc";
+import { useRipple } from "../../lib/ripple";
 import { IconButton } from "../ui";
 
 interface NavItem {
@@ -62,6 +63,56 @@ const GROUP_SYSTEM: NavItem[] = [
 
 export const NAV: NavItem[] = [...GROUP_CONFIG, ...GROUP_WORKSPACES, ...GROUP_RESOURCES, ...GROUP_SYSTEM];
 
+/**
+ * One navigation row.
+ *
+ * The ripple needs a per-row host element, so the row is its own component
+ * rather than a closure: `useRipple` must not be called inside `renderItem`
+ * (it is a hook, and the old markup clipped the ripple at the pill's corner
+ * because there was no positioned host to clip against).
+ */
+function NavButton({
+  item,
+  isActive,
+  collapsed,
+  t,
+  onNavigate,
+}: {
+  item: NavItem;
+  isActive: boolean;
+  collapsed: boolean;
+  t: Strings;
+  onNavigate: (page: string) => void;
+}) {
+  const { ripple, rippleTarget } = useRipple();
+  const Icon = item.icon;
+  return (
+    <button
+      ref={rippleTarget as React.Ref<HTMLButtonElement>}
+      type="button"
+      title={t.nav[item.key]}
+      onClick={() => onNavigate(item.page)}
+      onMouseEnter={() => prefetchRoute(item.page)}
+      onPointerDown={ripple}
+      className={cn(
+        "relative isolate flex h-10 w-full items-center gap-3 overflow-hidden rounded-full px-3.5 text-[13px] font-medium",
+        "transition-[background-color,color,padding] duration-[var(--dur-medium)] ease-[var(--ease-emphasized)]",
+        collapsed && "justify-center px-0",
+        isActive
+          ? "bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]"
+          : "text-[var(--color-fg-muted)] hover:bg-[color-mix(in_srgb,var(--color-fg)_8%,transparent)] hover:text-[var(--color-fg)]",
+      )}
+    >
+      <Icon
+        size={18}
+        strokeWidth={2.1}
+        className={cn("shrink-0", isActive && "text-[var(--m3-on-secondary-container)]")}
+      />
+      {!collapsed && <span className="truncate">{t.nav[item.key]}</span>}
+    </button>
+  );
+}
+
 export function Sidebar({
   route,
   collapsed,
@@ -84,31 +135,7 @@ export function Sidebar({
 
   const renderItem = (item: NavItem) => {
     const isActive = route.page === item.page;
-    const Icon = item.icon;
-    return (
-      <button
-        key={item.page}
-        type="button"
-        title={t.nav[item.key]}
-        onClick={() => onNavigate(item.page)}
-        onMouseEnter={() => prefetchRoute(item.page)}
-        className={cn(
-          "flex h-10 items-center gap-3 rounded-full px-3.5 text-[13px] font-medium",
-          "transition-[background-color,color,padding] duration-[var(--dur-medium)] ease-[var(--ease-emphasized)]",
-          collapsed && "justify-center px-0",
-          isActive
-            ? "bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]"
-            : "text-[var(--color-fg-muted)] hover:bg-[color-mix(in_srgb,var(--color-fg)_8%,transparent)] hover:text-[var(--color-fg)]",
-        )}
-      >
-        <Icon
-          size={18}
-          strokeWidth={2.1}
-          className={cn("shrink-0", isActive && "text-[var(--m3-on-secondary-container)]")}
-        />
-        {!collapsed && <span className="truncate">{t.nav[item.key]}</span>}
-      </button>
-    );
+    return <NavButton key={item.page} item={item} isActive={isActive} collapsed={collapsed} t={t} onNavigate={onNavigate} />;
   };
 
   return (
@@ -119,12 +146,27 @@ export function Sidebar({
         collapsed ? "w-[76px]" : "w-[248px]",
       )}
     >
-      <div className="flex h-[56px] shrink-0 items-center gap-2.5 px-4">
-        <Hexagon size={22} strokeWidth={2.4} className="shrink-0 text-[var(--color-accent)]" />
-        {!collapsed && (
-          <span className="truncate text-[14px] font-medium tracking-[-0.01em] text-[var(--color-fg)]">{t.appName}</span>
+      {/*
+       * The rail is 76px; a 32px horizontal inset leaves 44px, which cannot hold
+       * a 22px mark, a gap and a 40px button (72px). Collapsed, the header keeps
+       * only the toggle, centred — otherwise the button is pushed past the rail
+       * and both its focus ring and its ripple get clipped by the aside.
+       */}
+      <div
+        className={cn(
+          "flex h-[56px] shrink-0 items-center",
+          collapsed ? "justify-center px-0" : "gap-2.5 px-4",
         )}
-        <IconButton label={t.shell.toggleSidebar} onClick={onToggle} className="ml-auto">
+      >
+        {!collapsed && (
+          <>
+            <Hexagon size={22} strokeWidth={2.4} className="shrink-0 text-[var(--color-accent)]" />
+            <span className="truncate text-[14px] font-medium tracking-[-0.01em] text-[var(--color-fg)]">
+              {t.appName}
+            </span>
+          </>
+        )}
+        <IconButton label={t.shell.toggleSidebar} onClick={onToggle} className={collapsed ? undefined : "ml-auto"}>
           {collapsed ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={15} />}
         </IconButton>
       </div>

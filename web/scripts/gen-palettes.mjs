@@ -192,7 +192,7 @@ for (const p of PALETTES) {
   lines.push("  },");
 }
 
-lines.push("];", "", "/** Palette used when nothing has been chosen yet. */", 'export const DEFAULT_PALETTE = "indigo";', "");
+lines.push("];", "", "/** Palette used when nothing has been chosen yet. */", 'export const DEFAULT_PALETTE = "teal";', "");
 
 writeFileSync(new URL("../src/lib/palettes.ts", import.meta.url), lines.join("\n"));
 console.log(`wrote ${PALETTES.length} palettes`);

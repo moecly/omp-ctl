@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { RotateCcw } from "lucide-react";
 
 import { useApp } from "../hooks/useApp";
@@ -6,10 +6,31 @@ import { useAsync } from "../hooks/useAsync";
 import { ipc } from "../lib/ipc";
 import { errorText, type ModelRef, type Provider } from "../lib/types";
 import { toast } from "../lib/toast";
-import { thinkingLabel } from "../lib/modelMeta";
+
 import { Badge, Button, EmptyState, SearchInput, Select } from "../components/ui";
+import { cn } from "../lib/cn";
 import { PageError, PageSkeleton } from "../components/ui/PageState";
 import { PageContainer } from "../components/shell/PageContainer";
+
+/** Compact thinking summary: the mode, then the level ladder. */
+/**
+ * Compacts the thinking config into one line for the table.
+ *
+ * The mode is shown only when it is not the default `effort`: repeating
+ * "effort ·" on every row costs width and carries no information.
+ */
+function thinkingSummary(model: { thinking?: { mode?: string; efforts?: string[] } }): string {
+  const own = model.thinking;
+  if (!own?.efforts?.length) return "—";
+  const ladder = own.efforts.join(" › ");
+  return own.mode && own.mode !== "effort" ? `${own.mode} › ${ladder}` : ladder;
+}
+
+function thinkingTitle(model: { thinking?: { mode?: string; efforts?: string[] } }): string {
+  const own = model.thinking;
+  if (!own?.efforts?.length) return "";
+  return own.mode ? `${own.mode}: ${own.efforts.join(", ")}` : own.efforts.join(", ");
+}
 
 export function Models() {
   const { t } = useApp();
@@ -20,9 +41,7 @@ export function Models() {
   const [saving, setSaving] = useState(false);
 
   const rows = useMemo(() => {
-    const all = (providers.data ?? []).flatMap((p) =>
-      p.models.map((m) => ({ provider: p.id, model: m })),
-    );
+    const all = (providers.data ?? []).flatMap((p) => p.models.map((m) => ({ provider: p.id, model: m })));
     const q = query.trim().toLowerCase();
     return all.filter((r) => {
       if (providerFilter !== "all" && r.provider !== providerFilter) return false;
@@ -30,6 +49,16 @@ export function Models() {
       return r.model.id.toLowerCase().includes(q) || (r.model.name ?? "").toLowerCase().includes(q);
     });
   }, [providers.data, query, providerFilter]);
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, typeof rows>();
+    for (const r of rows) {
+      const list = map.get(r.provider);
+      if (list) list.push(r);
+      else map.set(r.provider, [r]);
+    }
+    return [...map.entries()];
+  }, [rows]);
 
   const def = useAsync<string | null>(() => ipc.getDefaultModel(), []);
   const defaultId = def.data ?? "";
@@ -87,10 +116,10 @@ export function Models() {
       {providers.error && <PageError message={providers.error} onRetry={() => { providers.reload(); refs.reload(); def.reload(); }} />}
       {def.error && <PageError message={def.error} onRetry={def.reload} />}
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-2">
         <span className="shrink-0 text-[12px] text-[var(--color-fg-muted)]">{t.models.defaultModel}</span>
         <Select
-          className="w-auto min-w-0 flex-1 max-w-[320px]"
+          className="w-[240px] shrink-0"
           value={defaultId}
           onChange={(e) => setDefault(e.target.value)}
           disabled={saving || !refs.data?.length}
@@ -104,72 +133,121 @@ export function Models() {
             </option>
           ))}
         </Select>
-        <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-[var(--color-fg-subtle)]">
-          {(refs.data ?? []).map((r) => r.id).join(" · ") || "—"}
-        </span>
-      </div>
-
-      <div className="flex gap-2">
-        <div className="max-w-[280px] flex-1">
-          <SearchInput value={query} onChange={setQuery} placeholder={t.common.search} />
-        </div>
-        <Select className="max-w-[200px]" value={providerFilter} onChange={(e) => setProviderFilter(e.target.value)}>
+        <div className="ml-auto flex min-w-0 items-center gap-2">
+          <SearchInput value={query} onChange={setQuery} placeholder={t.common.search} className="w-[220px]" />
+          <Select className="w-[160px] shrink-0" value={providerFilter} onChange={(e) => setProviderFilter(e.target.value)}>
           <option value="all">{t.common.none}</option>
           {(providers.data ?? []).map((p) => (
             <option key={p.id} value={p.id}>
               {p.id}
             </option>
           ))}
-        </Select>
+          </Select>
+        </div>
       </div>
 
       {rows.length === 0 ? (
         <EmptyState title={t.common.empty} />
       ) : (
-        <table className="w-full border-collapse text-left">
-          <thead>
-            <tr className="text-[11px] uppercase text-[var(--color-fg-subtle)]">
-              <th className="sticky top-0 bg-[var(--color-bg)] py-2 font-medium">ID</th>
-              <th className="sticky top-0 bg-[var(--color-bg)] py-2 font-medium">{t.models.provider}</th>
-              <th className="sticky top-0 bg-[var(--color-bg)] py-2 font-medium">{t.common.name}</th>
-              <th className="sticky top-0 bg-[var(--color-bg)] py-2 font-medium">{t.models.contextWindow}</th>
-              <th className="sticky top-0 bg-[var(--color-bg)] py-2 font-medium">{t.models.maxTokens}</th>
-              <th className="sticky top-0 bg-[var(--color-bg)] py-2 font-medium">{t.models.thinkingLevel}</th>
-              <th className="sticky top-0 bg-[var(--color-bg)] py-2 font-medium" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[var(--color-border)]">
-            {rows.map((r) => (
-              <tr key={`${r.provider}/${r.model.id}`} className="h-[44px] hover:bg-[var(--color-hover)]">
-                <td className="font-mono text-[12px] text-[var(--color-fg)]">{r.model.id}</td>
-                <td>
-                  <Badge tone="neutral">{r.provider}</Badge>
-                </td>
-                <td className="text-[13px] text-[var(--color-fg-muted)]">{r.model.name ?? "—"}</td>
-                <td className="font-mono text-[12px] text-[var(--color-fg-subtle)]">
-                  {r.model.contextWindow?.toLocaleString() ?? "—"}
-                </td>
-                <td className="font-mono text-[12px] text-[var(--color-fg-subtle)]">
-                  {r.model.maxTokens?.toLocaleString() ?? "—"}
-                </td>
-                <td className="font-mono text-[12px] text-[var(--color-fg-subtle)]">
-                  {thinkingLabel(r.model.thinking?.mode, r.model.thinking?.efforts) ||
-                    refs.data?.find((x) => x.id === `${r.provider}/${r.model.id}`)?.thinking?.join("/") ||
-                    "—"}
-                </td>
-                <td>
-                  <div className="flex items-center justify-end gap-2">
-                    {r.model.reasoning && <Badge tone="accent">{t.models.reasoning}</Badge>}
-                    {r.model.imageInput && <Badge tone="neutral">{t.models.imageInput}</Badge>}
-                    <Button size="sm" variant="ghost" onClick={() => setDefault(`${r.provider}/${r.model.id}`)}>
-                      {t.models.setDefault}
-                    </Button>
-                  </div>
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full table-fixed border-collapse text-left">
+            <thead>
+              <tr className="text-[11px] uppercase tracking-[0.05em] text-[var(--color-fg-subtle)]">
+                <th className="w-auto py-2 pr-4 font-medium">{t.models.id}</th>
+                <th className="w-[88px] py-2 pr-4 font-medium">{t.common.name}</th>
+                <th className="w-[92px] py-2 pr-4 text-right font-medium">{t.models.contextWindow}</th>
+                <th className="w-[80px] py-2 pr-4 text-right font-medium">{t.models.maxTokens}</th>
+                <th className="w-[22%] py-2 pr-4 font-medium">{t.models.thinkingLevel}</th>
+                <th className="w-[148px] py-2 font-medium" />
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {grouped.map(([provider, group]) => (
+                <Fragment key={provider}>
+                  <tr>
+                    <td colSpan={6} className="pb-1 pt-4 first:pt-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--color-fg-muted)]">
+                          {provider}
+                        </span>
+                        <span className="text-[11px] tabular-nums text-[var(--color-fg-subtle)]">{group.length}</span>
+                        <span className="h-px flex-1 bg-[var(--color-border)]" />
+                      </div>
+                    </td>
+                  </tr>
+                  {group.map((r) => {
+                    const selector = `${r.provider}/${r.model.id}`;
+                    const isDefault = selector === defaultId;
+                    return (
+                      <tr
+                        key={selector}
+                        className={cn(
+                          "group border-b border-[var(--color-border)] transition-colors duration-[var(--dur-short)] last:border-0",
+                          "hover:bg-[var(--color-hover)]",
+                          isDefault && "bg-[color-mix(in_srgb,var(--color-accent)_8%,transparent)]",
+                        )}
+                      >
+                        <td className="py-2.5 pr-4 font-mono text-[12px] leading-5 text-[var(--color-fg)]">
+                          <span className="block truncate" title={r.model.id}>
+                            {r.model.id}
+                          </span>
+                        </td>
+                        <td className="py-2.5 pr-4 text-[12px] leading-5 text-[var(--color-fg-muted)]">
+                          <span className="block truncate" title={r.model.name ?? ""}>
+                            {r.model.name ?? "—"}
+                          </span>
+                        </td>
+                        <td className="py-2.5 pr-4 text-right font-mono text-[11px] tabular-nums leading-5 text-[var(--color-fg-subtle)]">
+                          {r.model.contextWindow?.toLocaleString() ?? "—"}
+                        </td>
+                        <td className="py-2.5 pr-4 text-right font-mono text-[11px] tabular-nums leading-5 text-[var(--color-fg-subtle)]">
+                          {r.model.maxTokens?.toLocaleString() ?? "—"}
+                        </td>
+                        <td className="py-2.5 pr-4 text-[11px] leading-5 text-[var(--color-fg-subtle)]">
+                          <span className="block truncate" title={thinkingTitle(r.model)}>
+                            {thinkingSummary(r.model)}
+                          </span>
+                        </td>
+                        <td className="py-2.5">
+                          <div className="flex items-center justify-end gap-1.5">
+                            {r.model.reasoning && (
+                              <span
+                                title={t.models.reasoning}
+                                className="rounded-full bg-[var(--color-surface-2)] px-1.5 text-[10px] font-medium leading-4 text-[var(--color-fg-subtle)]"
+                              >
+                                R
+                              </span>
+                            )}
+                            {r.model.imageInput && (
+                              <span
+                                title={t.models.imageInput}
+                                className="rounded-full bg-[var(--color-surface-2)] px-1.5 text-[10px] font-medium leading-4 text-[var(--color-fg-subtle)]"
+                              >
+                                IMG
+                              </span>
+                            )}
+                            {isDefault ? (
+                              <Badge tone="accent">{t.common.default}</Badge>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="shrink-0"
+                                onClick={() => setDefault(selector)}
+                              >
+                                {t.models.setDefault}
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </Fragment>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </PageContainer>
   );

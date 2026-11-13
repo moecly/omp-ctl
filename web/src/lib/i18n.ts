@@ -85,7 +85,6 @@ export interface Strings {
     theme: string;
     themeDark: string;
     themeLight: string;
-    themeAuto: string;
     language: string;
     palette: string;
     font: string;
@@ -169,6 +168,7 @@ export interface Strings {
     reasoning: string;
     imageInput: string;
     thinkingLevel: string;
+    id: string;
     thinkingMode: string;
     thinkingEfforts: string;
     thinkingDefaultLevel: string;
@@ -187,6 +187,8 @@ export interface Strings {
     selectorHint: string;
     quickAdd: string;
     thinkingLevel: string;
+    model: string;
+    name: string;
   };
   defaults: {
     title: string;
@@ -427,7 +429,6 @@ const zh: Strings = {
     theme: "主题",
     themeDark: "深色",
     themeLight: "浅色",
-    themeAuto: "跟随系统",
     palette: "配色方案",
     font: "字体",
     fontSize: "字号",
@@ -511,6 +512,7 @@ const zh: Strings = {
     reasoning: "推理",
     imageInput: "图像输入",
     thinkingLevel: "思考等级",
+    id: "模型 ID",
     thinkingMode: "传输模式",
     thinkingEfforts: "支持的等级",
     thinkingDefaultLevel: "该模型默认等级",
@@ -530,6 +532,8 @@ const zh: Strings = {
     selectorHint: "形如 provider/model，可带 :off 等后缀",
     quickAdd: "常用角色快捷添加",
     thinkingLevel: "思考强度",
+    model: "模型",
+    name: "角色",
   },
   defaults: {
     title: "默认值",
@@ -783,7 +787,6 @@ const en: Strings = {
     theme: "Theme",
     themeDark: "Dark",
     themeLight: "Light",
-    themeAuto: "System",
     palette: "Palette",
     font: "Font",
     fontSize: "Text size",
@@ -867,6 +870,7 @@ const en: Strings = {
     reasoning: "Reasoning",
     imageInput: "Image input",
     thinkingLevel: "Thinking levels",
+    id: "Model ID",
     thinkingMode: "Transport mode",
     thinkingEfforts: "Supported levels",
     thinkingDefaultLevel: "Model default level",
@@ -886,6 +890,8 @@ const en: Strings = {
     selectorHint: "provider/model, optional :suffix",
     quickAdd: "Quick-add common roles",
     thinkingLevel: "Thinking level",
+    model: "Model",
+    name: "Role",
   },
   defaults: {
     title: "Defaults",

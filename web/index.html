@@ -19,10 +19,12 @@
           var root = document.documentElement;
           var pref = localStorage.getItem("omp-ctl.theme");
           var light = window.matchMedia("(prefers-color-scheme: light)").matches;
-          var dark = pref === "dark" || (pref === "auto" && !light) ? true : pref === "light" ? false : !light;
+          // Two states only. With no stored choice the OS decides, which is what
+          // first launch should do; the first explicit toggle pins the result.
+          var dark = pref === "dark" ? true : pref === "light" ? false : !light;
           root.dataset.tone = dark ? "dark" : "light";
           root.dataset.theme = dark ? "dark" : "light";
-          root.dataset.palette = localStorage.getItem("omp-ctl.palette") || "indigo";
+          root.dataset.palette = localStorage.getItem("omp-ctl.palette") || "teal";
         } catch (e) {}
       })();
     </script>

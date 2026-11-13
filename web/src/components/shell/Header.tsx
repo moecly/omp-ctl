@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Check, ChevronDown, Globe, Monitor, Moon, Palette as PaletteIcon, Search, Sun } from "lucide-react";
+import { flushSync } from "react-dom";
+import { Check, ChevronDown, Globe, Moon, Palette as PaletteIcon, Search, Sun } from "lucide-react";
 
 import { useApp } from "../../hooks/useApp";
 import type { Route } from "../../lib/router";
@@ -7,6 +8,7 @@ import { pageTitle } from "./AppShell";
 import { PALETTES } from "../../lib/palettes";
 import { LOCALES, type Locale } from "../../lib/i18n";
 import { cn } from "../../lib/cn";
+import { useRipple } from "../../lib/ripple";
 import { IconButton, Kbd } from "../ui";
 
 const LOCALE_LABEL: Record<Locale, string> = { zh: "中文", en: "English" };
@@ -33,14 +35,12 @@ function useDismiss(open: boolean, close: () => void) {
 }
 
 export function Header({ route, onOpenPalette }: { route: Route; onOpenPalette: () => void }) {
-  const { t, themePref, setThemePref, locale, setLocale, palette, setPalette } = useApp();
+  const { t, theme, setThemePref, locale, setLocale, palette, setPalette } = useApp();
   const [paletteMenu, setPaletteMenu] = useState(false);
   const [localeMenu, setLocaleMenu] = useState(false);
   const paletteRef = useDismiss(paletteMenu, () => setPaletteMenu(false));
   const localeRef = useDismiss(localeMenu, () => setLocaleMenu(false));
-
-  const themeLabel =
-    themePref === "auto" ? t.shell.themeAuto : themePref === "light" ? t.shell.themeLight : t.shell.themeDark;
+  const { ripple, rippleTarget } = useRipple();
 
   const active = PALETTES.find((p) => p.id === palette) ?? PALETTES[0];
 
@@ -104,14 +104,19 @@ export function Header({ route, onOpenPalette }: { route: Route; onOpenPalette: 
               setLocaleMenu(false);
             }}
             className={cn(
-              "flex h-9 items-center gap-1.5 rounded-full border border-[var(--color-border)] px-2.5 text-[12px] text-[var(--color-fg-muted)] transition-colors hover:bg-[var(--color-hover)]",
+              "relative isolate flex h-9 items-center gap-1.5 overflow-hidden rounded-full border border-[var(--color-border)] px-2.5 text-[12px] text-[var(--color-fg-muted)]",
+              "transition-colors hover:bg-[var(--color-hover)]",
               paletteMenu && "bg-[var(--color-active)] text-[var(--color-fg)]",
             )}
           >
             <span className="flex gap-0.5">
-              <span className="h-3.5 w-3.5 rounded-full" style={{ background: active.light.primary }} />
-              <span className="h-3.5 w-3.5 rounded-full" style={{ background: active.light.tertiary }} />
-              <span className="h-3.5 w-3.5 rounded-full" style={{ background: active.dark.primary }} />
+              {[active.light.primary, active.light.tertiary, active.dark.primary].map((color, i) => (
+                <span
+                  key={i}
+                  className="h-3.5 w-3.5 rounded-full transition-[background-color] duration-[var(--dur-medium)] ease-[var(--ease-emphasized)]"
+                  style={{ background: color }}
+                />
+              ))}
             </span>
             <ChevronDown size={13} />
           </button>
@@ -126,8 +131,12 @@ export function Header({ route, onOpenPalette }: { route: Route; onOpenPalette: 
                   key={p.id}
                   type="button"
                   onClick={(e) => {
+                    // Close the menu *before* the reveal snapshots the frame.
+                    // Otherwise the frozen copy still shows the open menu and
+                    // the user watches it linger, then pop away when the mask
+                    // finishes — the "page refreshed itself" flicker.
+                    flushSync(() => setPaletteMenu(false));
                     setPalette(p.id, { x: e.clientX, y: e.clientY });
-                    setPaletteMenu(false);
                   }}
                   className={cn(
                     "list-in flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-2 py-1.5 text-left text-[13px]",
@@ -148,13 +157,31 @@ export function Header({ route, onOpenPalette }: { route: Route; onOpenPalette: 
           )}
         </div>
 
-        <IconButton
-          label={`${t.shell.theme}: ${themeLabel}`}
-          className="h-9 w-9 rounded-full"
-          onClick={() => setThemePref(themePref === "dark" ? "light" : themePref === "light" ? "auto" : "dark")}
+        <button
+          type="button"
+          title={`${t.shell.theme}: ${theme === "dark" ? t.shell.themeDark : t.shell.themeLight}`}
+          aria-label={`${t.shell.theme}: ${theme === "dark" ? t.shell.themeDark : t.shell.themeLight}`}
+          onPointerDown={ripple}
+          ref={rippleTarget as React.Ref<HTMLButtonElement>}
+          onClick={(e) => setThemePref(theme === "dark" ? "light" : "dark", { x: e.clientX, y: e.clientY })}
+          className="relative isolate flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full text-[var(--color-fg-muted)] transition-colors duration-[var(--dur-short)] hover:bg-[color-mix(in_srgb,var(--color-fg)_8%,transparent)] hover:text-[var(--color-fg)]"
         >
-          {themePref === "auto" ? <Monitor size={16} /> : themePref === "light" ? <Sun size={16} /> : <Moon size={16} />}
-        </IconButton>
+          {/* Two icons cross-fade instead of popping: only the active one is
+              visible, stacked and scaled slightly, so the toggle reads as a
+              morph rather than a glyph swap. */}
+          {([["light", Sun], ["dark", Moon]] as const).map(([key, Glyph]) => (
+            <span
+              key={key}
+              aria-hidden={theme !== key}
+              className={cn(
+                "absolute flex transition-[opacity,transform] duration-[var(--dur-medium)] ease-[var(--ease-emphasized)]",
+                theme === key ? "scale-100 opacity-100" : "scale-75 opacity-0",
+              )}
+            >
+              <Glyph size={16} />
+            </span>
+          ))}
+        </button>
       </div>
     </header>
   );

@@ -94,4 +94,4 @@ export const PALETTES: Palette[] = [
 ];
 
 /** Palette used when nothing has been chosen yet. */
-export const DEFAULT_PALETTE = "indigo";
+export const DEFAULT_PALETTE = "teal";

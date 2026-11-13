@@ -10,11 +10,22 @@ export function saveLocale(v: string) {
   localStorage.setItem(KEY_LOCALE, v);
 }
 
-export type ThemePref = "dark" | "light" | "auto";
+/** The two tones the UI exposes. Following the OS is the absence of a choice,
+ * not a third state: `hasThemeChoice` decides whether the stored value or the OS
+ * wins, so nothing downstream has to special-case "auto". */
+export type ThemePref = "dark" | "light";
+
+/** Whether the user has ever picked a tone (as opposed to following the OS). */
+export function hasThemeChoice(): boolean {
+  const v = localStorage.getItem(KEY_THEME);
+  return v === "dark" || v === "light";
+}
 
 export function loadThemePref(): ThemePref {
   const v = localStorage.getItem(KEY_THEME);
-  return v === "dark" || v === "light" || v === "auto" ? v : "light";
+  if (v === "dark" || v === "light") return v;
+  // No stored choice: resolve the OS preference now so the first paint matches.
+  return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
 }
 
 export function saveTheme(v: ThemePref) {

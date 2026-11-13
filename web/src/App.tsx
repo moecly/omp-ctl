@@ -56,7 +56,7 @@ export function App() {
   return (
     <AppShell>
       {(route) => (
-        <div key={route.page} className="page-enter flex min-h-0 flex-1 flex-col">
+        <div key={route.page} className="page-enter flex min-h-0 min-w-0 flex-1 flex-col">
           {page(route)}
         </div>
       )}

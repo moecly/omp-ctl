@@ -1,17 +1,20 @@
 import {
+  Children,
   type ButtonHTMLAttributes,
   type InputHTMLAttributes,
   type ReactNode,
   type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
+  isValidElement,
   useEffect,
   useRef,
   useState,
 } from "react";
-import { Check, Inbox, Loader2, Search, X } from "lucide-react";
+import { Check, ChevronDown, Inbox, Loader2, Search, X } from "lucide-react";
 
 import { cn } from "../../lib/cn";
 import { useApp } from "../../hooks/useApp";
+import { useRipple } from "../../lib/ripple";
 
 /*
  * Material Design 3 primitives.
@@ -49,10 +52,17 @@ const BUTTON_SIZE = {
 };
 
 export function Button({ variant = "default", size = "md", className = "", children, ...rest }: ButtonProps) {
+  const { ripple, rippleTarget } = useRipple();
   return (
     <button
+      ref={rippleTarget as React.Ref<HTMLButtonElement>}
       type="button"
+      onPointerDown={(e) => {
+        ripple(e);
+        rest.onPointerDown?.(e);
+      }}
       className={cn(
+        "relative isolate overflow-hidden",
         "inline-flex items-center justify-center whitespace-nowrap rounded-full font-medium",
         "transition-[background-color,box-shadow,transform,filter] duration-[var(--dur-short)]",
         "active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40",
@@ -73,13 +83,20 @@ interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 export function IconButton({ active, label, className = "", children, ...rest }: IconButtonProps) {
+  const { ripple, rippleTarget } = useRipple();
   return (
     <button
+      ref={rippleTarget as React.Ref<HTMLButtonElement>}
       type="button"
       title={label}
       aria-label={label}
       data-active={active}
+      onPointerDown={(e) => {
+        ripple(e);
+        rest.onPointerDown?.(e);
+      }}
       className={cn(
+        "relative isolate overflow-hidden",
         "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--color-fg-muted)]",
         "transition-[background-color,color,transform] duration-[var(--dur-short)]",
         "hover:bg-[color-mix(in_srgb,var(--color-fg)_8%,transparent)] hover:text-[var(--color-fg)]",
@@ -117,22 +134,218 @@ export function Field({ label, hint, error, children }: FieldProps) {
   );
 }
 
+/*
+ * Outlined control.
+ *
+ * A filled field was invisible here: its fill was `surface-container`
+ * (#ecedf4) on a `surface` (#f8f9ff) page, a 1.11:1 contrast ratio — the field
+ * read as a barely-there smudge. M3's own filled variant is not much better on
+ * this palette (`surface-container-highest` is 1.23:1), so the boundary has to
+ * be drawn rather than implied by tone. A real outline at `outline` (1.9:1 or
+ * better against every surface role) plus an accent ring on focus is legible
+ * in both tones and does not depend on the palette's luck.
+ */
 const CONTROL_BASE =
-  "w-full rounded-[var(--radius-sm)] border border-[var(--color-border-strong)] bg-[var(--color-surface-2)] text-[13px] text-[var(--color-fg)] placeholder:text-[var(--color-fg-subtle)] transition-[border-color,box-shadow,background-color] duration-[var(--dur-short)] focus:border-[var(--color-accent)] focus:bg-[var(--color-surface)] focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-accent)_22%,transparent)] disabled:cursor-not-allowed disabled:opacity-50";
+  "w-full rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-transparent " +
+  "text-[13px] text-[var(--color-fg)] placeholder:text-[var(--color-fg-subtle)] " +
+  "transition-[border-color,box-shadow,background-color] duration-[var(--dur-short)] " +
+  "hover:border-[var(--color-fg-subtle)] focus:border-[var(--color-accent)] focus:outline-none " +
+  "focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-accent)_24%,transparent)] " +
+  "disabled:cursor-not-allowed disabled:opacity-50";
 
 export function Input({ className = "", mono, ...rest }: InputHTMLAttributes<HTMLInputElement> & { mono?: boolean }) {
-  return <input className={cn(CONTROL_BASE, "h-10 px-3", mono && "font-mono", className)} {...rest} />;
+  return <input className={cn(CONTROL_BASE, "h-10 px-3.5", mono && "font-mono", className)} {...rest} />;
 }
 
 export function Textarea({ className = "", ...rest }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return <textarea className={cn(CONTROL_BASE, "min-h-[88px] resize-y px-3 py-2.5", className)} {...rest} />;
 }
 
-export function Select({ className = "", children, ...rest }: SelectHTMLAttributes<HTMLSelectElement>) {
+/**
+ * M3 select: a filled anchor that opens a menu surface.
+ *
+ * The native `<select>` popup is drawn by the OS/GTK, so it ignores every token
+ * and looks foreign next to the rest of the UI. This keeps the `<option>`
+ * children API (so call sites are unchanged) but renders the list itself as an
+ * M3 menu with a state layer, and anchors the menu to the trigger.
+ */
+export function Select({ className = "", children, value, onChange, disabled, ...rest }: SelectHTMLAttributes<HTMLSelectElement>) {
+  const options = Children.toArray(children)
+    .filter(isValidElement<{ value?: string | number; children?: ReactNode; disabled?: boolean }>)
+    .map((child) => ({
+      value: String(child.props.value ?? ""),
+      label: child.props.children,
+      disabled: Boolean(child.props.disabled),
+    }));
+  const current = options.find((o) => o.value === String(value ?? ""));
+  const anchor = useRef<HTMLButtonElement>(null);
+  const [open, setOpen] = useState(false);
+  const [placement, setPlacement] = useState({ left: 0, top: 0, width: 0 });
+
+  const toggle = () => {
+    if (disabled) return;
+    const r = anchor.current?.getBoundingClientRect();
+    if (r) {
+      // Flip above the trigger when there is not enough room below.
+      const below = window.innerHeight - r.bottom;
+      const estimated = Math.min(options.length * 40 + 12, 320);
+      const top = below < estimated && r.top > below ? r.top - estimated - 6 : r.bottom + 6;
+      setPlacement({ left: r.left, top, width: r.width });
+    }
+    setOpen((v) => !v);
+  };
+
   return (
-    <select className={cn(CONTROL_BASE, "h-10 cursor-pointer px-3", className)} {...rest}>
-      {children}
-    </select>
+    <>
+      <button
+        ref={anchor}
+        type="button"
+        role="combobox"
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        disabled={disabled as boolean}
+        onClick={toggle}
+        className={cn(
+          CONTROL_BASE,
+          "flex h-10 cursor-pointer items-center gap-2 px-3 text-left disabled:cursor-not-allowed",
+          className,
+        )}
+        {...(rest as ButtonHTMLAttributes<HTMLButtonElement>)}
+      >
+        <span className="min-w-0 flex-1 truncate">{current?.label ?? <span className="opacity-50">—</span>}</span>
+        <ChevronDown size={16} strokeWidth={2.3} className={cn("shrink-0 transition-transform", open && "rotate-180")} />
+      </button>
+      {open && (
+        <MenuPopup
+          anchor={anchor.current}
+          left={placement.left}
+          top={placement.top}
+          width={placement.width}
+          items={options.map((o) => ({
+            value: o.value,
+            label: o.label,
+            selected: o.value === String(value ?? ""),
+            disabled: o.disabled,
+          }))}
+          onSelect={(v) => {
+            setOpen(false);
+            anchor.current?.focus();
+            onChange?.({ target: { value: v } } as React.ChangeEvent<HTMLSelectElement>);
+          }}
+          onClose={() => {
+            setOpen(false);
+            anchor.current?.focus();
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+/** M3 menu surface, positioned in viewport coordinates. */
+function MenuPopup({
+  anchor,
+  left,
+  top,
+  width,
+  items,
+  onSelect,
+  onClose,
+}: {
+  anchor: HTMLElement | null;
+  left: number;
+  top: number;
+  width: number;
+  items: { value: string; label: ReactNode; selected: boolean; disabled: boolean }[];
+  onSelect: (value: string) => void;
+  onClose: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [active, setActive] = useState(() => Math.max(0, items.findIndex((i) => i.selected)));
+
+  useEffect(() => {
+    const onDown = (e: MouseEvent) => {
+      if (!ref.current) return;
+      const target = e.target as Element;
+      if (ref.current?.contains(target)) return;
+      // The click that opened this menu lands on its own trigger: ignore it,
+      // but a *different* trigger must close this one before opening its own.
+      if (anchor?.contains(target)) return;
+      onClose();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+      } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        const step = e.key === "ArrowDown" ? 1 : -1;
+        setActive((i) => {
+          let next = i;
+          for (let n = 0; n < items.length; n++) {
+            next = (next + step + items.length) % items.length;
+            if (!items[next].disabled) break;
+          }
+          return next;
+        });
+      } else if (e.key === "Enter" || e.key === " ") {
+        const item = items[active];
+        if (item && !item.disabled) {
+          e.preventDefault();
+          onSelect(item.value);
+        }
+      }
+    };
+    window.addEventListener("mousedown", onDown);
+    window.addEventListener("keydown", onKey);
+    ref.current?.focus();
+    // Viewport coordinates go stale as soon as anything scrolls or resizes, so
+    // the menu closes instead of drifting away from its trigger. Attached one
+    // frame late: focusing the menu can itself scroll it into view.
+    const frame = requestAnimationFrame(() => {
+      window.addEventListener("resize", onClose);
+      window.addEventListener("scroll", onClose, true);
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("mousedown", onDown);
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", onClose);
+      window.removeEventListener("scroll", onClose, true);
+    };
+  }, [anchor, items, active, onSelect, onClose]);
+
+  return (
+    <div
+      ref={ref}
+      role="listbox"
+      tabIndex={-1}
+      style={{ left, top, minWidth: Math.max(width, 168) }}
+      className="menu-in fixed z-[60] max-h-[320px] overflow-y-auto rounded-[var(--radius-sm)] bg-[var(--color-surface)] p-1.5 shadow-[var(--shadow-lg)] outline-none"
+    >
+      {items.map((item, i) => (
+        <button
+          key={`${item.value}-${i}`}
+          type="button"
+          role="option"
+          aria-selected={item.selected}
+          disabled={item.disabled}
+          onMouseEnter={() => setActive(i)}
+          onClick={() => onSelect(item.value)}
+          className={cn(
+            "flex w-full items-center gap-2 rounded-[6px] px-3 py-2 text-left text-[13px] transition-colors duration-[var(--dur-short)]",
+            item.disabled && "cursor-not-allowed opacity-40",
+            i === active && !item.disabled && "bg-[var(--color-hover)]",
+            item.selected ? "text-[var(--color-fg)]" : "text-[var(--color-fg-muted)]",
+          )}
+        >
+          <span className="flex w-4 shrink-0 justify-center">
+            {item.selected && <Check size={15} strokeWidth={2.6} strokeLinecap="round" />}
+          </span>
+          <span className="min-w-0 flex-1 truncate">{item.label}</span>
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -147,30 +360,36 @@ export function Switch({
   disabled?: boolean;
   label?: string;
 }) {
+  const { ripple, rippleTarget } = useRipple();
   return (
     <button
+      ref={rippleTarget as React.Ref<HTMLButtonElement>}
       type="button"
       role="switch"
       aria-checked={checked}
       aria-label={label}
       title={label}
       disabled={disabled}
+      onPointerDown={ripple}
       onClick={() => onChange(!checked)}
       className={cn(
-        "relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border-2 transition-[background-color,border-color] duration-[var(--dur-medium)]",
+        "relative isolate inline-flex h-7 w-12 shrink-0 items-center overflow-hidden rounded-full",
+        "transition-[background-color] duration-[var(--dur-medium)] ease-[var(--ease-emphasized)]",
+        // M3 2024: unselected track is a filled surface role with an outline,
+        // not a heavy 2px border; selected fills and drops the outline.
         checked
-          ? "border-[var(--color-accent)] bg-[var(--color-accent)]"
-          : "border-[var(--color-border-strong)] bg-[var(--color-surface-2)]",
-        disabled && "cursor-not-allowed opacity-40",
+          ? "bg-[var(--color-accent)]"
+          : "bg-[var(--color-surface-2)] outline outline-1 -outline-offset-1 outline-[var(--color-border-strong)]",
+        disabled && "cursor-not-allowed opacity-38",
       )}
     >
       <span
         className={cn(
-          "block rounded-full transition-[transform,width,height,background-color] duration-[var(--dur-medium)]",
-          "ease-[var(--ease-emphasized)]",
+          "pointer-events-none block rounded-full",
+          "transition-[transform,width,height,background-color] duration-[var(--dur-medium)] ease-[var(--ease-emphasized)]",
           checked
-            ? "h-5 w-5 translate-x-[24px] bg-[var(--color-accent-fg)]"
-            : "h-3 w-3 translate-x-[5px] bg-[var(--color-fg-muted)]",
+            ? "h-5 w-5 translate-x-[25px] bg-[var(--color-accent-fg)]"
+            : "h-4 w-4 translate-x-[15px] bg-[var(--color-fg-subtle)]",
         )}
       />
     </button>
@@ -188,22 +407,29 @@ export function Checkbox({
   disabled?: boolean;
   children?: ReactNode;
 }) {
+  const { ripple, rippleTarget } = useRipple();
   return (
     <label
       className={cn(
         "inline-flex cursor-pointer select-none items-center gap-2.5 text-[13px] text-[var(--color-fg)]",
-        disabled && "cursor-not-allowed opacity-40",
+        disabled && "cursor-not-allowed opacity-38",
       )}
     >
       <span
-        className={cn(
-          "flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] border-2 transition-[background-color,border-color] duration-[var(--dur-short)]",
-          checked
-            ? "border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-accent-fg)]"
-            : "border-[var(--color-border-strong)] bg-transparent",
-        )}
+        ref={rippleTarget as React.Ref<HTMLSpanElement>}
+        onPointerDown={ripple}
+        className="relative isolate flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full"
       >
-        {checked && <Check size={14} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />}
+        <span
+          className={cn(
+            "flex h-[18px] w-[18px] items-center justify-center transition-[background-color,border-color] duration-[var(--dur-short)]",
+            checked
+              ? "rounded-[4px] bg-[var(--color-accent)] text-[var(--color-accent-fg)]"
+              : "rounded-[3px] border-2 border-[var(--color-border-strong)] bg-transparent",
+          )}
+        >
+          {checked && <Check size={13} strokeWidth={3.2} strokeLinecap="round" strokeLinejoin="round" />}
+        </span>
       </span>
       <input
         type="checkbox"
@@ -381,13 +607,15 @@ export function SearchInput({
   value,
   onChange,
   placeholder,
+  className = "",
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
+  className?: string;
 }) {
   return (
-    <span className="relative block">
+    <span className={cn("relative block", className)}>
       <Search
         size={16}
         strokeWidth={2.2}
