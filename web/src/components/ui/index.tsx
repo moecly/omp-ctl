@@ -145,10 +145,18 @@ export function Field({ label, hint, error, children }: FieldProps) {
  * better against every surface role) plus an accent ring on focus is legible
  * in both tones and does not depend on the palette's luck.
  */
+/*
+ * Outlined control.
+ *
+ * No transition on the resting state. A provider form renders ~90 of these at
+ * once, and a transition property on each one made the panel's first frame cost
+ * 37ms instead of 17ms — every control started an interpolation as it mounted.
+ * Border colour still changes on hover/focus; it just switches in one frame,
+ * which is imperceptible on a 1px border and costs nothing.
+ */
 const CONTROL_BASE =
   "w-full rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-transparent " +
   "text-[13px] text-[var(--color-fg)] placeholder:text-[var(--color-fg-subtle)] " +
-  "transition-[border-color,box-shadow,background-color] duration-[var(--dur-short)] " +
   "hover:border-[var(--color-fg-subtle)] focus:border-[var(--color-accent)] focus:outline-none " +
   "focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-accent)_24%,transparent)] " +
   "disabled:cursor-not-allowed disabled:opacity-50";

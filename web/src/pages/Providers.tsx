@@ -1,5 +1,5 @@
 import { memo, useCallback, useState } from "react";
-import { Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { ChevronRight, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
 
 import { useApp } from "../hooks/useApp";
 import type { Strings } from "../lib/i18n";
@@ -69,6 +69,8 @@ const ModelCard = memo(function ModelCard({
   onPatch,
   onRemove,
   onOpenThinking,
+  open,
+  onToggle,
 }: {
   model: ModelEntry;
   index: number;
@@ -76,24 +78,51 @@ const ModelCard = memo(function ModelCard({
   onPatch: (index: number, next: Partial<ModelEntry>) => void;
   onRemove: (index: number) => void;
   onOpenThinking: (index: number) => void;
+  open: boolean;
+  onToggle: () => void;
 }) {
   return (
-    <div className="model-card flex flex-col gap-3 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-2)] p-3">
-      <div className="flex items-start gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="truncate font-mono text-[12px] text-[var(--color-fg)]" title={m.id}>
-            {m.id || "—"}
-          </div>
-          <div className="mt-1 flex flex-wrap items-center gap-1.5">
-            {m.reasoning && <Badge tone="accent">{t.models.reasoning}</Badge>}
-            {m.imageInput && <Badge tone="neutral">{t.models.imageInput}</Badge>}
-          </div>
-        </div>
-        <IconButton label={t.common.delete} onClick={() => onRemove(i)}>
-          <Trash2 size={14} />
-        </IconButton>
-      </div>
+    <div
+      className={cn(
+        "flex flex-col rounded-[var(--radius-md)] border bg-[var(--color-surface-2)] transition-colors duration-[var(--dur-short)]",
+        open ? "border-[var(--color-border-strong)]" : "border-[var(--color-border)]",
+      )}
+    >
+      {/*
+       * Collapsed by default. A provider can hold nine models; rendering every
+       * field of every model on open mounted ~430 nodes (30 inputs, 53 buttons)
+       * in one commit, which measured 5-8 dropped frames before anything was
+       * painted. The summary row is what the user scans; the form is what they
+       * edit, one model at a time.
+       */}
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex w-full items-center gap-3 rounded-[var(--radius-md)] px-3 py-2 text-left"
+      >
+        <ChevronRight
+          size={14}
+          className={cn(
+            "shrink-0 text-[var(--color-fg-subtle)] transition-transform duration-[var(--dur-short)]",
+            open && "rotate-90",
+          )}
+        />
+        <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-[var(--color-fg)]" title={m.id}>
+          {m.id || "—"}
+        </span>
+        <span className="flex shrink-0 items-center gap-1.5">
+          {thinkingLabel(m.thinking?.mode, m.thinking?.efforts) && (
+            <span className="hidden text-[11px] text-[var(--color-fg-subtle)] md:inline">
+              {thinkingLabel(m.thinking?.mode, m.thinking?.efforts)}
+            </span>
+          )}
+          {m.reasoning && <Badge tone="accent">{t.models.reasoning}</Badge>}
+          {m.imageInput && <Badge tone="neutral">{t.models.imageInput}</Badge>}
+        </span>
+      </button>
 
+      {open && (
+      <div className="flex flex-col gap-3 px-3 pb-3">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <Field label={t.common.name}>
           <Input value={m.name ?? ""} onChange={(e) => onPatch(i, { name: e.target.value || undefined })} />
@@ -151,7 +180,12 @@ const ModelCard = memo(function ModelCard({
           />
           {t.models.imageInput}
         </label>
+        <IconButton label={t.common.delete} className="ml-auto h-8 w-8" onClick={() => onRemove(i)}>
+          <Trash2 size={14} />
+        </IconButton>
       </div>
+      </div>
+      )}
     </div>
   );
 });
@@ -374,6 +408,8 @@ function ProviderForm({
   const [probedIds, setProbedIds] = useState<string[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
   const [thinkEdit, setThinkEdit] = useState<{ index: number; config: ThinkingConfig } | null>(null);
+  // Which model row is expanded; one at a time keeps the mounted subtree small.
+  const [openModel, setOpenModel] = useState<number | null>(null);
 
   const defaults = useAsync<Defaults>(() => ipc.getDefaults(), []);
   const refs = useAsync<ModelRef[]>(() => ipc.listModelRefs(), []);
@@ -615,6 +651,8 @@ function ProviderForm({
             onPatch={patchModel}
             onRemove={removeModel}
             onOpenThinking={openThinking}
+            open={openModel === i}
+            onToggle={() => setOpenModel((cur) => (cur === i ? null : i))}
           />
         ))}
         <Button

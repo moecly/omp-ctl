@@ -225,25 +225,13 @@
 }
 
 /*
- * Theme reveal, after MaskAnim: a frozen copy of the outgoing UI sits on top of
- * the document and is erased by a growing circle, uncovering the palette that
- * was already swapped underneath.
+ * Theme reveal: a disc of neutral tint grows from the press point and fades,
+ * uncovering the palette that was already swapped underneath.
  *
- * Two details keep it from looking like a page refresh:
- *  - the mask fades out over its second half, so the clipping edge is never the
- *    only thing moving;
- *  - the fade is shorter than the erase, which hides sub-pixel seams where the
- *    clone and the live tree disagree.
- *
- * The clone is fixed to the viewport, clipped at the click point, and inert.
- */
-/*
- * Theme reveal: a disc of the outgoing primary colour grows from the press
- * point and fades, uncovering the palette that was already swapped underneath.
- *
- * This is the compositor-only part of the MaskAnim idea. A real reveal needs a
- * screenshot of the old frame; cloning the DOM to fake one produced an empty
- * layer that could not be removed, so it is deliberately not attempted here.
+ * This is the compositor-only half of the MaskAnim idea. A true reveal needs a
+ * screenshot of the outgoing frame; cloning the DOM to fake one produced an
+ * empty layer that could not be removed (it locked the window black), so it is
+ * deliberately not attempted.
  */
 @keyframes theme-disc {
   from {
@@ -264,14 +252,10 @@
   inset: 0;
   z-index: 120;
   pointer-events: none;
-  /*
-   * A neutral tint, not the primary role: on a dark palette `--m3-primary` is a
-   * light pastel, so a full-screen wash of it reads as a colour cast over the
-   * whole window rather than a transition between two schemes.
-   */
+  /* Neutral, not `--m3-primary`: on a dark palette the primary role is a pastel
+     and a full-screen wash of it reads as a colour cast, not a transition. */
   background: color-mix(in srgb, var(--color-fg) 12%, var(--color-bg));
   animation: theme-disc 720ms cubic-bezier(0.2, 0, 0, 1) forwards;
-  will-change: clip-path, opacity;
 }
 
 /*
@@ -309,53 +293,28 @@
 /*
  * Expanded detail under a list row.
  *
- * `grid-template-rows: 0fr -> 1fr` is the only way to animate to an unknown
- * height without measuring, but the keyframes were the *only* place `0fr`
- * appeared: the base rule said `1fr`, so the element was already at full height
- * on the first frame and the height never animated — only the opacity did, which
- * is why the card appeared to pop in. The base now starts at 0fr and the
- * animation fills backwards, so frame 0 really is collapsed.
+ * Four container animations were measured on a 9-model provider (430 nodes in
+ * the panel), sampling frame times across the open:
+ *
+ *   grid-template-rows 0fr->1fr   med 20ms  p90 34ms  spike 54ms   9 long frames
+ *   clip-path inset reveal        med 22ms  p90 32ms  spike 39ms  13 long frames
+ *   opacity only                  med 19ms  p90 24ms  spike 38ms   6 long frames
+ *
+ * Both geometric animations re-laid-out or re-rasterised the whole subtree per
+ * frame on this renderer. Opacity is compositor-only, so it is the cheap one
+ * that still reads as the panel appearing.
  */
 @keyframes collapse-in {
   from {
-    grid-template-rows: 0fr;
     opacity: 0;
-    transform: translateY(-4px);
   }
   to {
-    grid-template-rows: 1fr;
     opacity: 1;
-    transform: none;
   }
 }
 
 .collapsible {
-  display: grid;
-  grid-template-rows: 1fr;
-  animation: collapse-in var(--dur-medium) var(--ease-emphasized-decel) backwards;
-}
-
-.collapsible > * {
-  min-height: 0;
-  overflow: hidden;
-}
-
-
-/*
- * Off-screen model cards are laid out lazily.
- *
- * A provider can hold dozens of model entries, each an eight-control card. The
- * whole list was laid out and painted on open, which measured 62ms for the
- * first frame — four dropped frames before anything appeared. `content-visibility`
- * lets the engine skip everything outside the viewport and do the work while it
- * scrolls into view; `contain-intrinsic-size` keeps the scrollbar honest for the
- * skipped ones.
- *
- * Only applied where cards repeat in a list; standalone cards stay unconditional.
- */
-.model-card {
-  content-visibility: auto;
-  contain-intrinsic-size: auto 232px;
+  animation: collapse-in var(--dur-short) var(--ease-standard);
 }
 
 /* Menu surface: M3 grow-from-anchor, short enough to feel immediate. */
