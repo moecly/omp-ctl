@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { memo, useCallback, useState } from "react";
 import { Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
 
 import { useApp } from "../hooks/useApp";
+import type { Strings } from "../lib/i18n";
 import { useAsync } from "../hooks/useAsync";
 import { ipc } from "../lib/ipc";
 import {
@@ -51,6 +52,109 @@ const BLANK: Provider = {
   models: [],
   raw: {},
 };
+
+/**
+ * One model row inside a provider form, memoised on its own data.
+ *
+ * A provider with nine models renders nine of these, each with eight controls
+ * and two switches. Without memoisation every keystroke in any one of them
+ * re-rendered all nine (the parent's `draft` object is replaced wholesale by
+ * `patch`), which is what made typing and scrolling in the expanded panel feel
+ * heavy.
+ */
+const ModelCard = memo(function ModelCard({
+  model: m,
+  index: i,
+  t,
+  onPatch,
+  onRemove,
+  onOpenThinking,
+}: {
+  model: ModelEntry;
+  index: number;
+  t: Strings;
+  onPatch: (index: number, next: Partial<ModelEntry>) => void;
+  onRemove: (index: number) => void;
+  onOpenThinking: (index: number) => void;
+}) {
+  return (
+    <div className="model-card flex flex-col gap-3 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-2)] p-3">
+      <div className="flex items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="truncate font-mono text-[12px] text-[var(--color-fg)]" title={m.id}>
+            {m.id || "—"}
+          </div>
+          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+            {m.reasoning && <Badge tone="accent">{t.models.reasoning}</Badge>}
+            {m.imageInput && <Badge tone="neutral">{t.models.imageInput}</Badge>}
+          </div>
+        </div>
+        <IconButton label={t.common.delete} onClick={() => onRemove(i)}>
+          <Trash2 size={14} />
+        </IconButton>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <Field label={t.common.name}>
+          <Input value={m.name ?? ""} onChange={(e) => onPatch(i, { name: e.target.value || undefined })} />
+        </Field>
+        <Field label={t.providers.api}>
+          <Select
+            value={m.api && !API_PRESETS.includes(m.api) ? "__custom" : (m.api ?? "")}
+            onChange={(e) => onPatch(i, { api: e.target.value === "__custom" ? m.api : e.target.value || undefined })}
+          >
+            <option value="">{t.models.unset}</option>
+            {API_PRESETS.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+            {m.api && !API_PRESETS.includes(m.api) && <option value="__custom">{m.api}</option>}
+          </Select>
+        </Field>
+        <Field label={t.models.thinkingLevel}>
+          <Button size="sm" className="w-full justify-between font-mono text-[11px]" onClick={() => onOpenThinking(i)}>
+            <span className="truncate">
+              {thinkingLabel(m.thinking?.mode, m.thinking?.efforts) || t.models.thinkingDefault}
+            </span>
+            <Pencil size={12} />
+          </Button>
+        </Field>
+        <Field label={t.models.contextWindow}>
+          <Input
+            type="number"
+            min={0}
+            value={m.contextWindow ?? ""}
+            onChange={(e) => onPatch(i, { contextWindow: e.target.value === "" ? undefined : Number(e.target.value) })}
+          />
+        </Field>
+        <Field label={t.models.maxTokens}>
+          <Input
+            type="number"
+            min={0}
+            value={m.maxTokens ?? ""}
+            onChange={(e) => onPatch(i, { maxTokens: e.target.value === "" ? undefined : Number(e.target.value) })}
+          />
+        </Field>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+        <label className="flex items-center gap-2 whitespace-nowrap text-[12px] text-[var(--color-fg-muted)]">
+          <Switch checked={m.reasoning} onChange={(v) => onPatch(i, { reasoning: v })} label={t.models.reasoning} />
+          {t.models.reasoning}
+        </label>
+        <label className="flex items-center gap-2 whitespace-nowrap text-[12px] text-[var(--color-fg-muted)]">
+          <Switch
+            checked={m.imageInput}
+            onChange={(v) => onPatch(i, { imageInput: v })}
+            label={t.models.imageInput}
+          />
+          {t.models.imageInput}
+        </label>
+      </div>
+    </div>
+  );
+});
 
 export function Providers({ param }: { param?: string }) {
   const { t } = useApp();
@@ -188,7 +292,7 @@ export function Providers({ param }: { param?: string }) {
                        * flush with the container, so the form read as page
                        * content with no margin at all.
                        */}
-                      <div className="mb-3 ml-3 mr-3 mt-2 rounded-[var(--radius-lg)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-sm)]">
+                      <div className="mb-3 ml-3 mr-3 mt-2 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-md)]">
                         <ProviderForm
                           provider={editing}
                           originalId={originalId}
@@ -275,7 +379,7 @@ function ProviderForm({
   const refs = useAsync<ModelRef[]>(() => ipc.listModelRefs(), []);
   const md = defaults.data?.model;
 
-  const openThinking = async (index: number) => {
+  const openThinking = useCallback(async (index: number) => {
     const m = draft.models[index];
     let effective = refs.data?.find((r) => r.id === `${originalId ?? draft.id}/${m.id}`)?.thinking;
     if (!m.thinking && !effective) {
@@ -292,7 +396,9 @@ function ProviderForm({
         ? { ...m.thinking, efforts: [...m.thinking.efforts] }
         : { mode: thinkingModeFor(m.api ?? draft.api), efforts: [...(effective ?? [])] },
     });
-  };
+    // `draft` is read, not stored, so it is a dependency of this callback.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft.api, draft.id, originalId, refs.data]);
 
   const blankModel = (): ModelEntry =>
     ({
@@ -305,9 +411,21 @@ function ProviderForm({
       raw: {},
     }) as ModelEntry;
 
-  const patch = (next: Partial<Provider>) => setDraft((d) => ({ ...d, ...next }));
-  const patchModel = (index: number, next: Partial<ModelEntry>) =>
-    setDraft((d) => ({ ...d, models: d.models.map((m, i) => (i === index ? { ...m, ...next } : m)) }));
+  const patch = useCallback(
+    (next: Partial<Provider>) => setDraft((d) => ({ ...d, ...next })),
+    [],
+  );
+  // Stable identity: `ModelCard` is memoised, and a fresh callback per render
+  // would invalidate every card and bring the re-render storm straight back.
+  const patchModel = useCallback(
+    (index: number, next: Partial<ModelEntry>) =>
+      setDraft((d) => ({ ...d, models: d.models.map((m, i) => (i === index ? { ...m, ...next } : m)) })),
+    [],
+  );
+  const removeModel = useCallback(
+    (index: number) => setDraft((d) => ({ ...d, models: d.models.filter((_, i) => i !== index) })),
+    [],
+  );
 
   const save = async () => {
     const id = draft.id.trim();
@@ -487,97 +605,17 @@ function ProviderForm({
 
       <div className="flex flex-col gap-2">
         {draft.models.map((m, i) => (
-          <div
-            key={`${m.id}-${i}`}
-            className="flex flex-col gap-3 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3"
-          >
-            <div className="flex items-start gap-3">
-              <div className="min-w-0 flex-1">
-                <div className="truncate font-mono text-[12px] text-[var(--color-fg)]" title={m.id}>
-                  {m.id || "—"}
-                </div>
-                <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                  {m.reasoning && <Badge tone="accent">{t.models.reasoning}</Badge>}
-                  {m.imageInput && <Badge tone="neutral">{t.models.imageInput}</Badge>}
-                </div>
-              </div>
-              <IconButton
-                label={t.common.delete}
-                onClick={() => patch({ models: draft.models.filter((_, j) => j !== i) })}
-              >
-                <Trash2 size={14} />
-              </IconButton>
-            </div>
-
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              <Field label={t.common.name}>
-                <Input value={m.name ?? ""} onChange={(e) => patchModel(i, { name: e.target.value || undefined })} />
-              </Field>
-              <Field label={t.providers.api}>
-                <Select
-                  value={m.api && !API_PRESETS.includes(m.api) ? "__custom" : (m.api ?? "")}
-                  onChange={(e) =>
-                    patchModel(i, { api: e.target.value === "__custom" ? m.api : e.target.value || undefined })
-                  }
-                >
-                  <option value="">{t.models.unset}</option>
-                  {API_PRESETS.map((p) => (
-                    <option key={p} value={p}>
-                      {p}
-                    </option>
-                  ))}
-                  {m.api && !API_PRESETS.includes(m.api) && <option value="__custom">{m.api}</option>}
-                </Select>
-              </Field>
-              <Field label={t.models.thinkingLevel}>
-                <Button
-                  size="sm"
-                  className="w-full justify-between font-mono text-[11px]"
-                  onClick={() => openThinking(i)}
-                >
-                  <span className="truncate">
-                    {thinkingLabel(m.thinking?.mode, m.thinking?.efforts) || t.models.thinkingDefault}
-                  </span>
-                  <Pencil size={12} />
-                </Button>
-              </Field>
-              <Field label={t.models.contextWindow}>
-                <Input
-                  type="number"
-                  min={0}
-                  value={m.contextWindow ?? ""}
-                  onChange={(e) =>
-                    patchModel(i, { contextWindow: e.target.value === "" ? undefined : Number(e.target.value) })
-                  }
-                />
-              </Field>
-              <Field label={t.models.maxTokens}>
-                <Input
-                  type="number"
-                  min={0}
-                  value={m.maxTokens ?? ""}
-                  onChange={(e) =>
-                    patchModel(i, { maxTokens: e.target.value === "" ? undefined : Number(e.target.value) })
-                  }
-                />
-              </Field>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-              <label className="flex items-center gap-2 text-[12px] whitespace-nowrap text-[var(--color-fg-muted)]">
-                <Switch checked={m.reasoning} onChange={(v) => patchModel(i, { reasoning: v })} label={t.models.reasoning} />
-                {t.models.reasoning}
-              </label>
-              <label className="flex items-center gap-2 text-[12px] whitespace-nowrap text-[var(--color-fg-muted)]">
-                <Switch
-                  checked={m.imageInput}
-                  onChange={(v) => patchModel(i, { imageInput: v })}
-                  label={t.models.imageInput}
-                />
-                {t.models.imageInput}
-              </label>
-            </div>
-          </div>
+          /* Key is the index, not the model id: keying on `m.id` rebuilt the
+             whole card (and dropped focus) on every keystroke in the ID field. */
+          <ModelCard
+            key={i}
+            model={m}
+            index={i}
+            t={t}
+            onPatch={patchModel}
+            onRemove={removeModel}
+            onOpenThinking={openThinking}
+          />
         ))}
         <Button
           size="sm"

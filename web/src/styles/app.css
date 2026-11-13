@@ -17,8 +17,26 @@
  * only has to rewrite `--m3-*` and everything follows.
  */
 @theme {
+  /*
+   * Container roles, in M3's own order.
+   *
+   * `surface-container-low` sat at 1.05:1 against `surface` on the tonal-spot
+   * palettes, so every card dissolved into the page and the whole UI read as
+   * one flat grey field. Containers that are meant to be *distinct* (cards,
+   * dialogs, menus) take `surface-container-lowest` — the step away from the
+   * page's surface — and the page itself stays at `surface`.
+   */
+  /*
+   * Container roles, in M3's own order.
+   *
+   * The page is `surface`. A floating card takes one step *toward* the viewer,
+   * which in M3's tonal system means a lower container index, not a darker
+   * tint: `surface-container-lowest` is the raised step on light palettes and
+   * the recessed one on dark. Using `container-low` for cards earlier put them
+   * 1.05:1 from the page, so cards and page merged into one grey field.
+   */
   --color-bg: var(--m3-surface);
-  --color-surface: var(--m3-surface-container-low);
+  --color-surface: var(--m3-surface-container-lowest);
   --color-surface-2: var(--m3-surface-container);
   --color-hover: var(--m3-surface-container-high);
   --color-active: var(--m3-surface-container-highest);
@@ -58,14 +76,19 @@
   --text-lg: 16px;
   --text-xl: 22px;
 
-  /* M3 elevation levels, colour-mixed so they read on any palette. */
-  --shadow-sm: 0 1px 2px color-mix(in srgb, var(--m3-shadow, #000) 16%, transparent);
-  --shadow-md:
-    0 1px 3px color-mix(in srgb, var(--m3-shadow, #000) 18%, transparent),
-    0 4px 8px -2px color-mix(in srgb, var(--m3-shadow, #000) 14%, transparent);
-  --shadow-lg:
-    0 2px 6px color-mix(in srgb, var(--m3-shadow, #000) 20%, transparent),
-    0 12px 24px -6px color-mix(in srgb, var(--m3-shadow, #000) 18%, transparent);
+  /*
+   * M3 elevation levels.
+   *
+   * These used `color-mix(in srgb, var(--m3-shadow, #000) …)`, but no palette
+   * defines `--m3-shadow`, so every level resolved through a colour-mix fallback
+   * at paint time. On the software rasterizer used by WebKitGTK that showed up
+   * as 19ms of the 53ms first frame when a 9-card panel opened. Fixed rgba
+   * values are equivalent here (the shadow is always black with alpha) and let
+   * the engine treat the layers as plain bitmaps.
+   */
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.16);
+  --shadow-md: 0 1px 3px rgb(0 0 0 / 0.18), 0 4px 8px -2px rgb(0 0 0 / 0.14);
+  --shadow-lg: 0 2px 6px rgb(0 0 0 / 0.2), 0 12px 24px -6px rgb(0 0 0 / 0.18);
 
   /*
    * M3 motion. The emphasised curves span the full range (0.2/0/0/1 is the
@@ -317,6 +340,23 @@
   overflow: hidden;
 }
 
+
+/*
+ * Off-screen model cards are laid out lazily.
+ *
+ * A provider can hold dozens of model entries, each an eight-control card. The
+ * whole list was laid out and painted on open, which measured 62ms for the
+ * first frame — four dropped frames before anything appeared. `content-visibility`
+ * lets the engine skip everything outside the viewport and do the work while it
+ * scrolls into view; `contain-intrinsic-size` keeps the scrollbar honest for the
+ * skipped ones.
+ *
+ * Only applied where cards repeat in a list; standalone cards stay unconditional.
+ */
+.model-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 232px;
+}
 
 /* Menu surface: M3 grow-from-anchor, short enough to feel immediate. */
 @keyframes menu-in {
