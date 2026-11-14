@@ -1,4 +1,4 @@
-import { memo, useCallback, useState } from "react";
+import { memo, useCallback, useRef, useState } from "react";
 import { ChevronRight, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
 
 import { useApp } from "../hooks/useApp";
@@ -400,6 +400,17 @@ function ProviderForm({
 }) {
   const { t } = useApp();
   const [draft, setDraft] = useState<Provider>(provider);
+  /*
+   * Live mirror of `draft` for callbacks that must stay referentially stable.
+   *
+   * `openThinking` is memoised so `ModelCard` can be memoised, but it needs the
+   * *current* model entries. Reading `draft` directly captured whichever object
+   * existed when the callback was created; after `commitThinking` replaced the
+   * entries, the dpenclosure still saw the old ones, so reopening the dialog
+   * showed the on-disk defaults instead of the effort levels just chosen.
+   */
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
   const [busy, setBusy] = useState(false);
   const [probing, setProbing] = useState(false);
   const [showKey, setShowKey] = useState(false);
@@ -408,20 +419,46 @@ function ProviderForm({
   const [probedIds, setProbedIds] = useState<string[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
   const [thinkEdit, setThinkEdit] = useState<{ index: number; config: ThinkingConfig } | null>(null);
-  // Which model row is expanded; one at a time keeps the mounted subtree small.
-  const [openModel, setOpenModel] = useState<number | null>(null);
+  /*
+   * Model rows expand independently.
+   *
+   * Collapsing one when another opens was a side effect of the first attempt at
+   * trimming the mounted subtree, and it fought the user: editing two models
+   * meant losing the first one's context every time. Rows still mount lazily
+   * (collapsed rows are a single summary line), which is what keeps the panel
+   * cheap; exclusivity was never needed for that.
+   */
+  const [openModels, setOpenModels] = useState<Set<string>>(() => new Set());
+  /*
+   * Open state follows the entry, not its position.
+   *
+   * Keyed by index, deleting a model shifted every later row and carried its
+   * open/closed state with it — so removing row 2 while row 3 was open made row
+   * 3's form appear under a different model. The id is stable, and entries with
+   * a blank id (a freshly added row) get a counter so two blanks still differ.
+   */
+  const entryKeys = useRef<string[]>([]);
+  const blankSeq = useRef(0);
+  const keyFor = useCallback((m: ModelEntry, i: number) => {
+    if (m.id.trim()) return `id:${m.id}`;
+    if (!entryKeys.current[i]) entryKeys.current[i] = `blank:${blankSeq.current++}`;
+    return entryKeys.current[i];
+  }, []);
 
   const defaults = useAsync<Defaults>(() => ipc.getDefaults(), []);
   const refs = useAsync<ModelRef[]>(() => ipc.listModelRefs(), []);
   const md = defaults.data?.model;
 
   const openThinking = useCallback(async (index: number) => {
-    const m = draft.models[index];
-    let effective = refs.data?.find((r) => r.id === `${originalId ?? draft.id}/${m.id}`)?.thinking;
+    const current = draftRef.current;
+    const m = current.models[index];
+    if (!m) return;
+    const selector = `${originalId ?? current.id}/${m.id}`;
+    let effective = refs.data?.find((r) => r.id === selector)?.thinking;
     if (!m.thinking && !effective) {
       try {
         const all = await ipc.listModelRefs();
-        effective = all.find((r) => r.id === `${originalId ?? draft.id}/${m.id}`)?.thinking;
+        effective = all.find((r) => r.id === selector)?.thinking;
       } catch {
         effective = undefined;
       }
@@ -430,11 +467,9 @@ function ProviderForm({
       index,
       config: m.thinking
         ? { ...m.thinking, efforts: [...m.thinking.efforts] }
-        : { mode: thinkingModeFor(m.api ?? draft.api), efforts: [...(effective ?? [])] },
+        : { mode: thinkingModeFor(m.api ?? current.api), efforts: [...(effective ?? [])] },
     });
-    // `draft` is read, not stored, so it is a dependency of this callback.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draft.api, draft.id, originalId, refs.data]);
+  }, [originalId, refs.data]);
 
   const blankModel = (): ModelEntry =>
     ({
@@ -640,21 +675,34 @@ function ProviderForm({
       </div>
 
       <div className="flex flex-col gap-2">
-        {draft.models.map((m, i) => (
-          /* Key is the index, not the model id: keying on `m.id` rebuilt the
-             whole card (and dropped focus) on every keystroke in the ID field. */
+        {draft.models.map((m, i) => {
+          const entryKey = keyFor(m, i);
+          return (
+          /*
+           * Keyed by entry identity, not index. The card's own inputs stay
+           * mounted across keystrokes because its `id` is edited inside the
+           * card, not in this list's key.
+           */
           <ModelCard
-            key={i}
+            key={entryKey}
             model={m}
             index={i}
             t={t}
             onPatch={patchModel}
             onRemove={removeModel}
             onOpenThinking={openThinking}
-            open={openModel === i}
-            onToggle={() => setOpenModel((cur) => (cur === i ? null : i))}
+            open={openModels.has(entryKey)}
+            onToggle={() =>
+              setOpenModels((cur) => {
+                const next = new Set(cur);
+                if (next.has(entryKey)) next.delete(entryKey);
+                else next.add(entryKey);
+                return next;
+              })
+            }
           />
-        ))}
+          );
+        })}
         <Button
           size="sm"
           className="self-start"
