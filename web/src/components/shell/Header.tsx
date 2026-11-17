@@ -8,6 +8,7 @@ import { pageTitle } from "./AppShell";
 import { PALETTES } from "../../lib/palettes";
 import { LOCALES, type Locale } from "../../lib/i18n";
 import { cn } from "../../lib/cn";
+import { MOD_LABEL } from "../../lib/chord";
 import { useRipple } from "../../lib/ripple";
 import { IconButton, Kbd } from "../ui";
 
@@ -56,7 +57,7 @@ export function Header({ route, onOpenPalette }: { route: Route; onOpenPalette: 
         >
           <Search size={14} />
           <span className="hidden sm:inline">{t.shell.commandPaletteHint}</span>
-          <Kbd>⌘K</Kbd>
+          <Kbd>{MOD_LABEL}K</Kbd>
         </button>
 
         <div className="relative" ref={localeRef}>

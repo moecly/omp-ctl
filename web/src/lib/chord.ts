@@ -2,6 +2,9 @@ import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 
 const MODIFIER_KEYS = new Set(["Control", "Meta", "Alt", "Shift"]);
 
+/** Primary modifier as the platform writes it: Command on macOS, Control elsewhere. */
+export const MOD_LABEL = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent) ? "⌘" : "Ctrl";
+
 const NAMED: Record<string, string> = {
   " ": "Space",
   ArrowUp: "Up",

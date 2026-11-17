@@ -1,10 +1,18 @@
 @import "tailwindcss";
 @import "./palettes.css";
 
+/*
+ * The shipped file holds exactly one face at `usWeightClass` 400. Declaring the
+ * range `400 700` makes every request from 400 to 700 match that one face, and
+ * Chromium then never synthesises bold — `font-medium` and `font-semibold`
+ * rendered pixel-identical to body text (measured: same ink/bounding box at
+ * weights 400/500/600/700). A single `400` declaration is the truth: 500 falls
+ * back to the regular face, and 600/700 get real synthetic bold.
+ */
 @font-face {
   font-family: "ChillRoundM";
   src: url("/fonts/ChillRoundM-SemiBold.woff2") format("woff2");
-  font-weight: 400 700;
+  font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
@@ -66,8 +74,14 @@
   --radius-lg: 16px;
   --radius-xl: 28px;
 
-  --font-sans: "ChillRoundM", -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  /*
+   * `--font-mono` ends with `--font-sans` rather than `monospace`: every
+   * monospace surface here also holds CJK (paths, JSON, prompt bodies), and a
+   * bare `monospace` sends those glyphs to the OS CJK font — Microsoft YaHei on
+   * Windows — which reads as a different typeface mid-sentence.
+   */
+  --font-sans: "ChillRoundM", -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", "Noto Sans CJK SC", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", var(--font-sans), monospace;
 
   --text-xs: 11px;
   --text-sm: 12px;

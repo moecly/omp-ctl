@@ -45,7 +45,7 @@ src-tauri/src/
   harness.rs            无 Tauri 的入口，供集成测试调用
 src-tauri/tests/
   real_agent_dir.rs     针对真实 agent 目录的集成测试
-web/public/fonts/          内置寒蝉半圆体（ChillRoundM，Zen Maru Gothic 的 pyftsubset 子集，OFL-1.1，见同目录 OFL.txt）
+web/public/fonts/          内置寒蝉半圆体（ChillRoundM v1.805 的全码位 woff2，pyftsubset --unicodes='*' 生成，OFL-1.1，见同目录 OFL.txt）
 src-tauri/icons/         `cargo tauri icon` 从 `source.svg` 生成的图标集（`bundle.icon` 引用）；改图标只改 source.svg 再重新生成
 packaging/aur/           AUR 包：每个包一个子目录（omp-ctl 源码构建 / omp-ctl-bin 展开 release 的 .deb）+ publish.sh（本地与 CI 共用的发布脚本）
 .github/workflows/release.yml  推送 tag `v*` 触发三平台打包（Linux 仅 deb+rpm，无 AppImage）；`aur` job 随后调 packaging/aur/publish.sh 推 AUR（secret `AUR_SSH_KEY`），拆成独立 workflow 不会被 GITHUB_TOKEN 的 release 事件触发
@@ -58,6 +58,9 @@ packaging/aur/           AUR 包：每个包一个子目录（omp-ctl 源码构�
 * 样式统一用 Tailwind v4 工具类；类名拼接一律走 `cn()`（`web/src/lib/cn.ts`），不手写模板字符串。
 * 一切视觉走 Material Design 3：`app.css` 只声明 token 与动效，配色来自 `palettes.css` 的 `--m3-*`（10 套 tonal-spot 方案），组件一律用 `var(--color-*)`／`var(--radius-*)`，不写 `dark:` 变体。主题 `dark`/`light`/`auto` 与配色、字体都存 localStorage，默认浅色 + 寒蝉半圆体；`auto` 跟随 `prefers-color-scheme`，语言默认跟随系统（`system_locale`）。配色与明暗切换都由 `reveal()`（`AppShell.tsx`）给出圆形的扩散过渡：先提交新配色，再从点击点扩散一层中性色圆盘并淡出。**不要**试图用 DOM 克隆做 MaskAnim 式擦除：`#root` 是 flex 子项，脱离文档后会塌成 0 高，克隆层是一张空白全屏遮罩，且移除回调不触发，会把窗口永久涂黑（已实测踩过）。View Transitions 同样不可用：此 WebKitGTK 声明 `startViewTransition` 却永不 resolve。`index.html` 的内联脚本先定一次配色与色调，避免首帧闪烁。
 * 明暗只有两态：`ThemePref = "dark" | "light"`，首次启动跟随系统（`hasThemeChoice()` 为假时由 `prefers-color-scheme` 决定），首次手动切换才落盘。配色只在 `AppShell` 的单个 `useEffect` 里 `applyPalette`，不要在 `setPalette`/`changeTheme` 里重复调用——两处写盘会让后一次 effect 用上一轮的派生 tone 覆盖刚切好的明暗。
+* 字体只有一条链路，别在别处再写 `font-family`：`app.css` 的 `--font-sans`（内置寒蝉半圆体 + 系统回退）与 `--font-mono`（等宽 + **以 `var(--font-sans)` 收尾**）是两个唯一入口，`fontStack()`（`appearance.ts`）只在用户换字体时改写 `--font-sans`。`--font-mono` 必须带 CJK 尾部：路径 / JSON / 提示词正文这些等宽区域都混中文，裸 `monospace` 会把汉字丢给系统 CJK 字体（Windows 是微软雅黑），一句话里出现两种字形。`@font-face` 只能声明 `font-weight: 400`：字体本身只有 400 一个字面，写 `400 700` 会让 400–700 全部命中同一字面，Chromium 因此**不合成粗体**，`font-medium`/`font-semibold` 与正文像素级相同（实测 ink/bbox 完全一致）。
+* 内置字体是**全码位**子集（从上游 ChillRoundM v1.805 以 `--unicodes='*'` 生成，12,329 个码位，2.6 MB），不要再手工挑选"UI 需要的字"：旧子集少了 868 个码位（`×°±§©®™`、`‘’«»•‰`、`─│┌└`、`Ⅰ①②❶`、假名、希腊/西里尔），在 Windows 上逐字回退到 Segoe UI Symbol / 雅黑，而 Linux 回退到 Noto Sans CJK 观感接近，所以这个缺陷只在 Windows 显形。上游本身没有 `⎋ ⇥ ⌘ ↻`，这类符号一律换成文字（Esc / Tab / 平台修饰键）或 lucide 图标，不要指望字体补齐。
+* `⌘` 只允许出现在 macOS：快捷键提示用 `MOD_LABEL`（`lib/chord.ts`，macOS 为 `⌘`，其余为 `Ctrl`），硬写 `⌘K` 在 Windows 上既是错的信息也缺字形。
 * 图标统一由 `svg.lucide` 的 `stroke-width`/圆角衔接覆盖，不在调用处逐个调线宽。
 * 输入类控件用**描边式**（`CONTROL_BASE`）：`--color-surface-2` 与页面底色只差 1.11:1，填充式在本项目的 tonal-spot 配色下不可见；边界必须靠 `--color-border-strong` 的实线画出（实测 5.83:1）。不要改回填充式或只靠色阶区分。
 * 全局 `button/a/input/...` 的 transition 只允许合成属性（background-color/color/transform/opacity）。此前包含 `box-shadow` 与 `border-color`，两者逐帧触发重绘；展开的服务商表单里有 80+ 控件，滚动时是成百个重绘目标。

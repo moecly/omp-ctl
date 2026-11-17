@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { Check, Plus, Repeat, RotateCcw, Trash2 } from "lucide-react";
 
 import { useApp } from "../hooks/useApp";
 import { useAsync } from "../hooks/useAsync";
@@ -231,9 +231,9 @@ export function ModelRoles() {
                       {inCycle.has(role) && (
                         <span
                           title="cycle"
-                          className="shrink-0 rounded-full bg-[var(--color-surface-2)] px-1.5 text-[10px] font-medium leading-4 text-[var(--color-fg-subtle)]"
+                          className="flex shrink-0 items-center rounded-full bg-[var(--color-surface-2)] px-1.5 text-[10px] font-medium leading-4 text-[var(--color-fg-subtle)]"
                         >
-                          ↻
+                          <Repeat size={11} strokeWidth={2.4} />
                         </span>
                       )}
                     </div>

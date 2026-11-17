@@ -1,7 +1,11 @@
 
 寒蝉半圆体 (ChillRoundM) is derived from Zen Maru Gothic and carried here as a
-WOFF2 subset containing the glyphs this UI needs (Latin, CJK punctuation and the
-CJK Unified Ideographs block). Copyright and licence follow.
+WOFF2 build of the complete upstream v1.805 face: every cmap entry the original
+ships (12,329 code points — Latin, CJK, kana, Greek, Cyrillic, punctuation,
+symbols and box drawing), just re-encoded as WOFF2. Rebuild it with
+`pyftsubset <ChillRoundM-SemiBold.ttf> --unicodes='*' --layout-features='*'
+--name-IDs='*' --flavor=woff2`; do not hand-pick ranges, because anything left
+out falls back to the OS font per glyph. Copyright and licence follow.
 
 Copyright 2021 The Zen Maru Gothic Project Authors (https://github.com/googlefonts/zen-marugothic)
 

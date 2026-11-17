@@ -14,6 +14,15 @@ export const BUNDLED_FONT = "ChillRoundM";
 
 export const SYSTEM_FONT = "system";
 
+/**
+ * System fallback chain, shared with the `--font-mono` tail in `app.css`.
+ *
+ * Ordered per platform: `PingFang SC` is the macOS CJK face, `Microsoft YaHei`
+ * the Windows one, `Noto Sans CJK SC` the Linux one. Without the explicit
+ * `Noto Sans SC` entry Windows picked `Segoe UI Symbol` for punctuation.
+ */
+export const SYSTEM_STACK = `-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", "Noto Sans CJK SC", sans-serif`;
+
 export function paletteById(id: string): Palette {
   return PALETTES.find((p) => p.id === id) ?? PALETTES.find((p) => p.id === DEFAULT_PALETTE) ?? PALETTES[0];
 }
@@ -51,16 +60,17 @@ export function applyPalette(palette: Palette, dark: boolean) {
   root.dataset.tone = dark ? "dark" : "light";
 }
 
-/** CSS `font-family` value for a stored font choice. */
+/**
+ * CSS `font-family` value for a stored font choice.
+ *
+ * The bundled face is selected by name exactly like an imported one, so both
+ * take the quoted branch; only "follow the system" drops the leading family.
+ */
 export function fontStack(family: string): string {
-  if (!family || family === SYSTEM_FONT) {
-    return `-apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif`;
-  }
-  if (family === BUNDLED_FONT) {
-    return `"${BUNDLED_FONT}", -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif`;
-  }
+  const fallback = SYSTEM_STACK;
+  if (!family || family === SYSTEM_FONT) return fallback;
   // Imported fonts keep their file stem as the family name.
-  return `"${family}", -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif`;
+  return `"${family}", ${fallback}`;
 }
 
 /** Make an imported font loadable by injecting an `@font-face` rule. */
