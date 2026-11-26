@@ -14,7 +14,7 @@ web/                    React + TypeScript + Vite + Tailwind v4 前端（bun 管
                         常量与 selector 拼接）、chord（KeyboardEvent → 组合键字符串）、router、i18n、prefs、toast、
                         hotkeys、format、cn（clsx+tailwind-merge）、scanRows（探测对话框行合并：上游在线 + 已配置但上游已移除）
     hooks/              useAsync（加载/错误/reload）、useApp（全局上下文）
-    components/ui/      UI 原语（Button/Input/Select/Dialog/CodeEditor/Tabs/...），纯 Tailwind；`Select` 是 M3 菜单，非原生 `<select>`
+    components/ui/      UI 原语（Button/Input/Select/Dialog/CodeEditor/Tabs/...），纯 Tailwind；`Select` 是 M3 菜单，非原生 `<select>`，菜单用 createPortal 挂到 body（视口坐标定位，且不能落在 `<label>` 里——label 会把菜单内的点击再转给触发器，选完立刻重开）
     components/shell/   AppShell、Sidebar、Header、CommandPalette、PageContainer
     components/settings/ 设置页「omp-ctl」Tab 内容：DefaultsPanel（默认值）
     components/roles/   模型角色页组件：PresetBar（预设选择/应用/新建/重命名/删除）

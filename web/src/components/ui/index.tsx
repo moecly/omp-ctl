@@ -10,6 +10,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 import { Check, ChevronDown, Inbox, Loader2, Search, X } from "lucide-react";
 
 import { cn } from "../../lib/cn";
@@ -223,29 +224,39 @@ export function Select({ className = "", children, value, onChange, disabled, ..
         <span className="min-w-0 flex-1 truncate">{current?.label ?? <span className="opacity-50">—</span>}</span>
         <ChevronDown size={16} strokeWidth={2.3} className={cn("shrink-0 transition-transform", open && "rotate-180")} />
       </button>
-      {open && (
-        <MenuPopup
-          anchor={anchor.current}
-          left={placement.left}
-          top={placement.top}
-          width={placement.width}
-          items={options.map((o) => ({
-            value: o.value,
-            label: o.label,
-            selected: o.value === String(value ?? ""),
-            disabled: o.disabled,
-          }))}
-          onSelect={(v) => {
-            setOpen(false);
-            anchor.current?.focus();
-            onChange?.({ target: { value: v } } as React.ChangeEvent<HTMLSelectElement>);
-          }}
-          onClose={() => {
-            setOpen(false);
-            anchor.current?.focus();
-          }}
-        />
-      )}
+      {open &&
+        /*
+         * Body-level: the menu is positioned in viewport coordinates, so it
+         * must not live inside the caller's `<label>`. A label activates its
+         * control for a click anywhere inside it, and picking an option closed
+         * the menu and immediately reopened it through the trigger. The portal
+         * also keeps the popup out of dialog scroll containers and overflow
+         * clipping.
+         */
+        createPortal(
+          <MenuPopup
+            anchor={anchor.current}
+            left={placement.left}
+            top={placement.top}
+            width={placement.width}
+            items={options.map((o) => ({
+              value: o.value,
+              label: o.label,
+              selected: o.value === String(value ?? ""),
+              disabled: o.disabled,
+            }))}
+            onSelect={(v) => {
+              setOpen(false);
+              anchor.current?.focus();
+              onChange?.({ target: { value: v } } as React.ChangeEvent<HTMLSelectElement>);
+            }}
+            onClose={() => {
+              setOpen(false);
+              anchor.current?.focus();
+            }}
+          />,
+          document.body,
+        )}
     </>
   );
 }
@@ -306,7 +317,9 @@ function MenuPopup({
     };
     window.addEventListener("mousedown", onDown);
     window.addEventListener("keydown", onKey);
-    ref.current?.focus();
+    // `preventScroll`: focusing a fixed menu can otherwise scroll the page or
+    // the dialog that owns it out from under the pointer.
+    ref.current?.focus({ preventScroll: true });
     // Viewport coordinates go stale as soon as anything scrolls or resizes, so
     // the menu closes instead of drifting away from its trigger. Attached one
     // frame late: focusing the menu can itself scroll it into view.
