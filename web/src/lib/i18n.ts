@@ -174,6 +174,7 @@ export interface Strings {
     thinkingDefaultLevel: string;
     thinkingDefault: string;
     thinkingHint: string;
+    baseUrlHint: string;
     unset: string;
   };
   roles: {
@@ -519,6 +520,8 @@ const zh: Strings = {
     thinkingDefault: "继承 omp 默认",
     thinkingHint:
       "不勾选任何等级则删除 thinking，沿用 omp 自动推断；勾选后写入 thinking.efforts，omp 才会允许角色选择这些等级。max 只有在这里勾选后才可选。",
+    baseUrlHint:
+      "留空则使用服务商的 Base URL；该模型走不同协议地址（如 Gemini 的 /v1beta）时才需要填。",
     unset: "未设置",
   },
   roles: {
@@ -877,6 +880,8 @@ const en: Strings = {
     thinkingDefault: "Inherit omp default",
     thinkingHint:
       "With no level selected the thinking block is removed and omp infers defaults. Selecting levels writes thinking.efforts, which is what makes them selectable for roles. max only appears there once enabled here.",
+    baseUrlHint:
+      "Empty uses the provider's Base URL. Set it when this model speaks a different protocol endpoint (e.g. Gemini's /v1beta).",
     unset: "Unset",
   },
   roles: {

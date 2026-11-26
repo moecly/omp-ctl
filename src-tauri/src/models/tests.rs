@@ -17,6 +17,7 @@ fn provider_sample() -> Provider {
                 id: "m1".to_string(),
                 name: Some("M One".to_string()),
                 api: None,
+                base_url: Some("http://localhost:8090/v1beta".to_string()),
                 reasoning: true,
                 image_input: true,
                 context_window: Some(128000),
@@ -33,6 +34,7 @@ fn provider_sample() -> Provider {
                 id: "m2".to_string(),
                 name: None,
                 api: None,
+                base_url: None,
                 reasoning: false,
                 image_input: false,
                 context_window: None,
@@ -55,6 +57,8 @@ fn to_value_round_trips_model_fields() {
     assert_eq!(m1.get("input"), Some(&json!(["text", "image"])));
     assert_eq!(m1.get("contextWindow"), Some(&json!(128000)));
     assert_eq!(m1.get("maxTokens"), Some(&json!(16384)));
+    assert_eq!(m1.get("baseUrl"), Some(&json!("http://localhost:8090/v1beta")));
+    assert!(models[1].get("baseUrl").is_none());
     assert_eq!(
         m1.get("thinking"),
         Some(&json!({
@@ -70,6 +74,8 @@ fn to_value_round_trips_model_fields() {
     assert!(b1.image_input);
     assert_eq!(b1.context_window, Some(128000));
     assert_eq!(b1.max_tokens, Some(16384));
+    assert_eq!(b1.base_url.as_deref(), Some("http://localhost:8090/v1beta"));
+    assert_eq!(back.models[1].base_url, None);
     let thinking = b1.thinking.as_ref().unwrap();
     assert_eq!(thinking.mode, "effort");
     assert_eq!(thinking.efforts, vec!["low", "high", "max"]);
@@ -119,6 +125,7 @@ fn max_levels_merge_into_reasoning_models_only() {
         id: id.to_string(),
         name: None,
         api: None,
+        base_url: None,
         reasoning: true,
         image_input: false,
         context_window: None,

@@ -37,6 +37,9 @@ pub struct ModelEntry {
     pub name: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub api: Option<String>,
+    /// Per-model endpoint override; omp falls back to the provider's `baseUrl`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub base_url: Option<String>,
     #[serde(default)]
     pub reasoning: bool,
     #[serde(default)]
@@ -126,6 +129,11 @@ impl Provider {
                                 .get("api")
                                 .and_then(|v| v.as_str())
                                 .map(|s| s.to_string()),
+                            base_url: mm
+                                .get("baseUrl")
+                                .and_then(|v| v.as_str())
+                                .filter(|s| !s.trim().is_empty())
+                                .map(|s| s.to_string()),
                             reasoning: mm
                                 .get("reasoning")
                                 .and_then(|v| v.as_bool())
@@ -192,6 +200,7 @@ impl Provider {
             em.insert("id".into(), json!(entry.id));
             set_or_remove(&mut em, "name", opt_of(entry.name.as_deref()));
             set_or_remove(&mut em, "api", opt_of(entry.api.as_deref()));
+            set_or_remove(&mut em, "baseUrl", opt_of(entry.base_url.as_deref()));
             set_bool(&mut em, "reasoning", entry.reasoning);
             em.insert(
                 "input".into(),

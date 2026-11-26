@@ -41,6 +41,7 @@ export interface ModelEntry {
   id: string;
   name?: string;
   api?: string;
+  baseUrl?: string;
   reasoning: boolean;
   imageInput: boolean;
   contextWindow?: number;

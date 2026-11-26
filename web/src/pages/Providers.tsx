@@ -141,6 +141,13 @@ const ModelCard = memo(function ModelCard({
             {m.api && !API_PRESETS.includes(m.api) && <option value="__custom">{m.api}</option>}
           </Select>
         </Field>
+        <Field label={t.providers.baseUrl} hint={t.models.baseUrlHint}>
+          <Input
+            mono
+            value={m.baseUrl ?? ""}
+            onChange={(e) => onPatch(i, { baseUrl: e.target.value || undefined })}
+          />
+        </Field>
         <Field label={t.models.thinkingLevel}>
           <Button size="sm" className="w-full justify-between font-mono text-[11px]" onClick={() => onOpenThinking(i)}>
             <span className="truncate">
